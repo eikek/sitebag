@@ -10,9 +10,9 @@ The jvm is a great platform for this and it fits better in my
 environment this way. To reuse the android and other great wallabag
 clients, the rest api is compatible to that of wallabag.
 
-While a web ui may follow later, the focus is to create a REST
-client. This makes it very easy for everyone to integrate it in any
-existing website.
+While a web ui may follow later, the focus is to create a REST server
+that responds with JSON. This makes it very easy for everyone to
+integrate it in any existing website.
 
 ## Dependencies
 
@@ -77,25 +77,32 @@ authenticating.
 
 #### create a new user account
 
-Here the password is a special one that is set in the configuration
-file. If it is not set, this will not work.
+Creates a new user account.
 
-    POST /newuser?password=&newaccount=&newpassword=
-    POST /newuser { password: "", newpccount: "", newpassword: "" }
-    > JSON { success: true, message: "" }
+    POST /newuser?newaccount=&newpassword= 
+    POST /newuser { newaccount: "", newpassword: "" }
+    -> JSON { success: true, message: "" }
 
-Since user managementis left to
-[porter](https://github.com/eikek/porter) you can simply use its
-console to create user accounts.
+Since user management is left to
+[porter](https://github.com/eikek/porter) you can use its console to
+create user accounts. It must be used to create the first account that
+you need to authenticate with when using this api. The account must
+have the permission `sitebag:createuser`.
+
+Sitebag users must have a set of permissions that are checked on each
+access. For example, to retrieve a page entry the permission
+`sitebag:<user>:get:entry:<id>` is checked. You can easily grant a user "john"
+all permissions for his own things, by adding `sitebag:john:*` to his
+permission set.
+
 
 #### create a new token
 
 Creates a secondary password that must be supplied with all non-admin
 urls.
 
-    POST /<account>/newtoken?account=&password=
-    POST /<account>/newtoken { account: "", password: "" }
-    JSON { token: "random" }
+    GET|POST /<account>/newtoken
+    -> JSON { token: "random" }
 
 
 #### get user config
@@ -104,14 +111,14 @@ Returns a JSON object containing all information about an account.
 
     GET /<account> (http-basic)
     POST /<account> { account: "", password: "" }
-    > JSON { account: "eike", tags: [], feeds: [], token: "" }
+    -> JSON { account: "eike", tags: [], feeds: [], token: "" }
 
 
 #### change main password 
 
     POST /eike/changepassword?newpassword=&account=&password=
     POST /eike/chanegpassword { account: "", password: ""; newpassword: "" }
-    > JSON { success: true, message: "password changed" }
+    -> JSON { success: true, message: "password changed" }
 
 
 #### delete user account
@@ -120,7 +127,7 @@ This will remove the account and all its data.
 
     DELETE /<account> ?account=&password=
     DELETE /<account> JSON{ account: "", password: "" }
-    > JSON { success: true, message: "" }
+    -> JSON { success: true, message: "" }
 
 If you remove an account using porter's console, the data related to
 this account is still there. You can manually drop the collection with
@@ -140,7 +147,7 @@ authenticating.
 
     POST /eike/entry/add?url=http...&account=&password=
     PUT /eike/entry { url: "", account: "", password: "" }
-    > JSON{ hash: "", title: "", url: "", content: "", read: false, tags:[] }
+    -> JSON{ hash: "", title: "", url: "", content: "", read: false, tags:[] }
 
 TODO: add wallabag url
 
@@ -159,7 +166,7 @@ Deletes the page entry with the given id.
 
     POST /eike/entry/delete?hash=<hash>&account=&password=
     DELETE /eike/entry { hash: "", account: "", password: "" }
-    > { title: "", hash: "", success: true, message: "Deleted successfully." }
+    -> { title: "", hash: "", success: true, message: "Deleted successfully." }
 
 TODO: Wallabag url
 
@@ -170,7 +177,7 @@ Toggles the read flag on a page entry.
 
     POST /eike/entry/[toggle|set|unset]read?hash=<hash>&account=&password=[&flag=true|false]
     POST /eike/entry/[toggle|set|unset] JSON{ hash: "", account: "", password: "", flag: }
-    > { read: true|false }
+    -> { read: true|false }
 
 TODO: wallabag url
 
@@ -199,7 +206,7 @@ Get a list of page entries as RSS feed or as JSON object.
     GET /eike/entry/rss|json/<tag>/?archived (http-basic)
     POST /eike/entry/rss|json/<tag>/?archived&account=&password=
     POST /eike/entry/rss|json/<tag>/ { archived: true, account: "", password: "" }
-    > xml rss or json
+    -> xml rss or json
 
 TODO: wallabag url
 
@@ -215,7 +222,7 @@ Adds or removes a tag from a page entry.
 
     POST /eike/entry/[un]tag/<hash>/?tag=a&tag=b&tag=c&tags=x,y,z&account=&password=
     POST /eike/entry/[un]tag/<hash>/ { account:"", password: "", tags: "..." }
-    > JSON { success: true, message: "tags added/removed" }
+    -> JSON { success: true, message: "tags added/removed" }
 
 TODO: wallabag url
 
@@ -232,12 +239,39 @@ list tag names:
 
     POST /eike/tags?account=&password=
     POST /eike/tags JSON{ account: "", password: "" }
-    > JSON { tags: [] }
+    -> JSON { tags: [] }
 
 The feed url list is similiar:
 
     POST /eike/feeds?account=&password=&format=json|rss
     POST /eike/feeds { account: "", password: "", format: "json|rss" }
-    > JSON { feeds: [] }
+    -> JSON { feeds: [ "http://", "http://", ... ] }
 
 
+## Configuration and more Detail
+
+### Mongo DB
+
+All data is pushed to a mongo database. Mongodb must be installed and
+running. The data is organized as follows:
+
+    account_entries
+      _id (= hash), title, url, content, read
+
+    account_tags
+      _id (= name), entries: [ hash1, hash2, ... ]
+
+Here `account` is replaced by the actual account name.
+
+
+### sitebag.conf
+
+The file `etc/sitebag.conf` contains all configuration settings. It
+first includes all default values and allows to override those below.
+
+### Authentication
+
+Authentication is provided by porter. There are two options: You
+already have a porter instance running and want sitebag to connect to
+it; or you can use an embedded porter instance that is running within
+sitebag.

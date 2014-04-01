@@ -3,8 +3,8 @@ import sbt.Keys._
 
 object Version {
   val scala = "2.10.3"
-  val spray = "1.3.1"
-  val akka = "2.3.0"
+  val spray = "1.2.1"
+  val akka = "2.2.4"
 }
 
 object Deps {
@@ -24,7 +24,7 @@ object Deps {
   val logback = Seq(
     "org.slf4j" % "slf4j-api" % "1.7.5",
     "ch.qos.logback" % "logback-classic" % "1.0.13" % "runtime",
-    "com.typesafe.akka" %% "akka-slf4j" % "2.2.3" % "runtime"
+    "com.typesafe.akka" %% "akka-slf4j" % Version.akka % "runtime"
   )
 
   val spray = Seq(
@@ -69,7 +69,7 @@ object Sitebag extends sbt.Build {
       buildInfoPackage := "org.eknet.sitebag",
       libraryDependencies ++= Deps.spray ++ Deps.sprayJson ++
         Deps.akka ++ Deps.porter ++ Deps.casbah ++ Deps.jsoup ++
-        Deps.config ++ Deps.testBasics
+        Deps.config ++ Deps.logback ++ Deps.testBasics
     )
   )
 
