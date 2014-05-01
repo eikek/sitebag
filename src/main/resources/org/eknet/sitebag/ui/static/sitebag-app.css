@@ -1,0 +1,44 @@
+body {
+    padding-top: 70px;
+}
+#sb-theme-modal .modal-body {
+    max-height: 420px;
+    overflow-y: auto;
+}
+#sb-notification {
+    position: fixed;
+    top: 75px;
+    z-index: 1000000;
+}
+html {
+    position: relative;
+    min-height: 100%;
+}
+.footer {
+    position: absolute;
+    bottom: -80px;
+    width: 100%;
+    height: 30px;
+}
+.sb-entry-actions-view-container {
+    width: 100%;
+    bottom: -40px;
+    z-index: 10000001;
+    position: absolute;
+    font-size: 30px;
+}
+.sb-entry-actions-inner {
+    margin-left: auto;
+    margin-right: auto;
+    display: table;
+}
+@media screen and (min-width: 800px) {
+    .sb-entry-actions-view-container {
+        position: fixed;
+        width: 25px;
+        right: 25px;
+        bottom: 10%;
+        z-index: 10000000;
+        font-size: 22px;
+    }
+}

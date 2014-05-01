@@ -1,0 +1,124 @@
+package org.eknet.sitebag.rest
+
+import scala.concurrent.duration._
+import org.specs2.mutable.Specification
+import akka.util.Timeout
+import java.util.concurrent.TimeUnit
+import spray.routing.HttpService
+import spray.httpx.SprayJsonSupport
+import spray.http._
+import spray.testkit.Specs2RouteTest
+import porter.model.Ident
+import org.eknet.sitebag._
+import org.eknet.sitebag.model.{Tag, PageEntry}
+
+class AppHttpSpec extends Specification with Specs2RouteTest with HttpService with FormDataSerialize {
+  def actorRefFactory = system
+  implicit val timeout = Timeout(3000, TimeUnit.MILLISECONDS)
+  implicit val routeTo = RouteTestTimeout(FiniteDuration(10, TimeUnit.SECONDS))
+  import JsonProtocol._
+  import SprayJsonSupport._
+  import commons._
+
+  private val extrRef = system.actorOf(ExtractionActor())
+  private val settings = SitebagSettings(system)
+  private val storeActor = system.actorOf(DummyStoreActor())
+  private val clientActor = createClient(extrRef, HttpResponse(entity = HttpEntity(htmlType, "<html>Hello world</html>")))
+  private val appRef = system.actorOf(AppActor(clientActor, storeActor))
+  private def route(subject: String) =
+    new AppHttp(settings, appRef, system, system.dispatcher, timeout).route(subject)
+
+  val entry = DummyStoreActor.existingEntry
+
+  def as(username: Ident, password: String = "test") = addCredentials(BasicHttpCredentials(username.name, password))
+  def asSuperuser = as(PorterStore.account.name, PorterStore.password)
+
+  def assertAck = {
+    responseAs[Ack] match {
+      case Success(_, _) =>
+      case x => sys.error("Invalid response: "+ x)
+    }
+    true
+  }
+
+  "The app http service" should {
+    "add a page entry" in {
+      Put("/entry", RAdd("https://dummy.org/test.html", None, Set.empty)) ~> asSuperuser ~> route("testuser") ~> check {
+        status === StatusCodes.OK
+        responseAs[StringResult] match {
+          case Success(Some(value), _ ) => assert(value.length > 0)
+          case x => sys.error("Invalid response: "+ x)
+        }
+        true
+      }
+    }
+    "get a page entry" in {
+      Get("/entry/"+ entry.id) ~> asSuperuser ~> route("testuser") ~> check {
+        responseAs[Result[PageEntry]] match {
+          case Success(Some(e), _) =>
+            assert(e.title === entry.title)
+            assert(e.content === entry.content)
+          case x => sys.error("Invalid response: "+ x)
+        }
+        true
+      }
+      Get("/entry?id="+DummyStoreActor.existingEntry.id) ~> asSuperuser ~> route("testuser") ~> check {
+        responseAs[Result[PageEntry]] match {
+          case Success(Some(e), _) =>
+            assert(e.title === entry.title)
+            assert(e.content === entry.content)
+          case x => sys.error("Invalid response: "+ x)
+        }
+        true
+      }
+    }
+    "delete a page entry" in {
+      Delete("/entry/"+ entry.id) ~> asSuperuser ~> route("testuser") ~> check {
+        assertAck
+      }
+      Post("/entry/"+ entry.id, DeleteAction(true)) ~> asSuperuser ~> route("testuser") ~> check {
+        responseAs[Ack].message === "Page removed."
+        assertAck
+      }
+      Post("/entry/" + entry.id, FormData(Map("delete" -> ""))) ~> asSuperuser ~> route("testuser") ~> check {
+        responseAs[Ack].message === "Page removed."
+        assertAck
+      }
+    }
+    "toggle and set archived status" in {
+      Post(s"/entry/${entry.id}/togglearchived") ~> asSuperuser ~> route("superadmin") ~> check {
+        assertAck
+      }
+      Post(s"/entry/${entry.id}/setarchived", Flag(true)) ~> asSuperuser ~> route("superadmin") ~> check {
+        assertAck
+      }
+      Post(s"/entry/${entry.id}/setarchived", Flag(true).toFormData) ~> asSuperuser ~> route("superadmin") ~> check {
+        assertAck
+      }
+    }
+    "tag and untag entries" in {
+      Post(s"/entry/${entry.id}/tag", TagInput(Set(Tag.favourite))) ~> asSuperuser ~> route("superadmin") ~> check {
+        assertAck
+      }
+      Post(s"/entry/${entry.id}/untag", TagInput(Set(Tag.favourite))) ~> asSuperuser ~> route("superadmin") ~> check {
+        assertAck
+      }
+    }
+    "list tags" in {
+      Get("/tags", TagFilter(".*")) ~> asSuperuser ~> route("superadmin") ~> check {
+        responseAs[Result[TagList]] match {
+          case Success(Some(list), _) => assert(list === DummyStoreActor.tagList)
+          case x => sys.error("Invalid response: "+x)
+        }
+        true
+      }
+      Get("/tags") ~> asSuperuser ~> route("superadmin") ~> check {
+        responseAs[Result[TagList]] match {
+          case Success(Some(list), _) => assert(list === DummyStoreActor.tagList)
+          case x => sys.error("Invalid response: "+x)
+        }
+        true
+      }
+    }
+  }
+}

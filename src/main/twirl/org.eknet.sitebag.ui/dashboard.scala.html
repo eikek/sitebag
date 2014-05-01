@@ -1,0 +1,66 @@
+@(settings: WebSettings)
+<div class="panel-group" id="sb-search-accordion">
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h4 class="panel-title">
+        <a data-toggle="collapse" data-parent="#sb-search-accordion" href="#sb-search-collapseOne"> Filter Entries </a>
+      </h4>
+    </div>
+    <div id="sb-search-collapseOne" class="panel-collapse collapse in">
+      <div class="panel-body">
+      </div>
+    </div>
+  </div>
+</div>
+<div class="sb-articles">
+</div>
+<script id="sbtpl-search-form" type="x-tmpl-mustache">
+  <form class="form-inline sb-search-form" role="form">
+    <select class="form-control" name="archived">
+      <option value="all">All</option>
+      <option value="false" selected="selected">New</option>
+      <option value="true">Archived</option>
+    </select>
+    <hr/>
+    {{#tags}}
+      <div class="checkbox col-sm-2">
+        <label>
+          <input type="checkbox" name="tag" value="{{name}}"> {{name}} <span class="small text-muted">({{count}})</span>
+        </label>
+      </div>
+    {{/tags}}
+  </form>
+</script>
+<script id="sbtpl-entry" type="x-tmpl-mustache">
+  <div class="col-sm-6 col-md-4 sb-entry" data-id="{{id}}">
+    <div class="thumbnail">
+      <div class="caption">
+        <h4 {{#mute}}class="text-muted"{{/mute}}>{{title}}</h4>
+        <p>{{shortText}}</p>
+        <p>
+          <span>
+            <span class="glyphicon glyphicon-tags"></span>&nbsp; <small>{{tagString}}</small>
+          </span>
+        </p>
+        <p>
+          <a href="{{url}}">{{urlHost}}</a>
+          <span class="pull-right small">{{createdMonth}}/{{createdYear}}</span>
+        </p>
+        <div>
+          <a href="@(settings.base.pathPrefix)ui/entry/{{id}}" class="btn btn-primary" role="button">Read on</a>
+          <span class="pull-right sb-entry-actions">
+            {{&actions}}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</script>
+@org.eknet.sitebag.ui.html.entryactions()
+
+<script type="text/javascript">
+  createEntrySearchForm(function() {
+    $('.sb-search-form').fillSbSearchForm();
+    loadEntries();
+  });
+</script>

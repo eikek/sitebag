@@ -1,0 +1,54 @@
+package org.eknet.sitebag.ui
+
+import spray.routing.{Directives, Route}
+import org.eknet.sitebag.rest.RestDirectives
+import akka.util.Timeout
+import org.eknet.sitebag.model.UserInfo
+import org.eknet.sitebag._
+import akka.actor.{ActorRef, ActorRefFactory}
+
+class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorRefFactory, to: Timeout)
+  extends Directives with RestDirectives with WebDirectives {
+  implicit def timeout = to
+  implicit def executionContext = refFactory.dispatcher
+  implicit def actorSystem = refFactory
+
+  val webSettings = settings.makeSubconfig("webui", c => new WebSettings(settings, c))
+
+  def route: Route = if (settings.webuiEnabled) enabled else disabled
+
+  def disabled: Route = reject()
+
+  import org.eknet.sitebag.rest.JsonProtocol._
+  import spray.httpx.SprayJsonSupport._
+
+  def enabled: Route = {
+    authc { userInfo =>
+      pathEndOrSingleSlash {
+        render(userInfo, html.dashboard(webSettings))
+      } ~
+      path("conf") {
+        render(userInfo, html.configuration(userInfo, webSettings))
+      } ~
+      path("entry" / Segment) { id =>
+        getEntry(store, GetEntry(userInfo.name, id)) { entry =>
+          render(userInfo, html.entryview(entry, webSettings))
+        }
+      } ~
+      path("entry" / Segment / "cache") { id =>
+        getEntryContent(store, GetEntryContent(userInfo.name, id))
+      } ~
+      path("static" / Segment) { file =>
+        getFromResource("org/eknet/sitebag/ui/static/" +file)
+      } ~
+      path("api" / "set-theme") {
+        anyParam("theme") { url =>
+          send("Theme changed.", "Unable to change theme.") {
+            settings.porter.updateAccount(userInfo.name, a => a.updatedProps(UserInfo.themeUrl.set(url)))
+          }
+        }
+      } ~
+      render(userInfo, html.notfound())
+    }
+  }
+}

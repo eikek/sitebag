@@ -5,12 +5,15 @@ import akka.util.Timeout
 import akka.pattern.ask
 import spray.routing._
 import spray.httpx.SprayJsonSupport
+import org.eknet.sitebag._
 import org.eknet.sitebag.model._
 import porter.model._
 import org.eknet.sitebag.SitebagSettings
 import akka.actor.ActorRef
+import porter.client.PorterClient
+import porter.app.client.PorterContext
 
-class AdminHttp(settings: SitebagSettings, adminRef: ActorRef, ec: ExecutionContext, to: Timeout) extends Directives with AuthDirectives with CommonDirectives {
+class AdminHttp(val settings: SitebagSettings, adminRef: ActorRef, ec: ExecutionContext, to: Timeout) extends Directives with RestDirectives {
 
   def porter = settings.porter
   implicit def timeout = to
@@ -19,29 +22,36 @@ class AdminHttp(settings: SitebagSettings, adminRef: ActorRef, ec: ExecutionCont
   import JsonProtocol._
   import SprayJsonSupport._
 
-  def route: Route = {
-    basicCredentials.isEmpty {
-      sendChallenge(AuthenticationFailedRejection.CredentialsMissing)
-    } ~
-    authBasic { auth =>
-      (path("api" / "newuser") & post) {
-        checkCreateUser(auth.accountId) {
-          handle { cu: CreateUser =>
-            (adminRef ? cu).mapTo[Result]
-          }
-        }
-      } ~
-      path("api" / Segment / "newtoken") { account =>
-        checkGenerateToken(Ident(account), auth.accountId) {
-          complete {
-            (adminRef ? GenerateToken(account)).mapTo[TokenResult]
-          }
-        }
-      } ~
-      path("api" / Segment / "changepassword") { account =>
-        checkChangePassword(Ident(account), auth.accountId) {
+  def route(subject: String, porter: PorterContext): Route = {
+    pathEndOrSingleSlash {
+      (put | post) {
+        checkAccess(subject, porter, checkCreateUser) { rctx =>
           handle { np: NewPassword =>
-            (adminRef ? ChangePassword(account, np.password)).mapTo[Result]
+            (adminRef ? CreateUser(rctx.subject, np.password)).mapTo[Ack]
+          }
+        }
+      }
+    } ~
+    post {
+      path("newtoken") {
+        checkAccess(subject, porter, checkGenerateToken) { rctx =>
+          complete {
+            (adminRef ? GenerateToken(rctx.subject)).mapTo[StringResult]
+          }
+        }
+      } ~
+      path("changepassword") {
+        checkAccess(subject, porter, checkChangePassword) { rctx =>
+          handle {
+            np: NewPassword =>
+              (adminRef ? ChangePassword(rctx.subject, np.password)).mapTo[Ack]
+          }
+        }
+      } ~
+      path("reextract") {
+        checkAccess(subject, porter, checkAddEntry) { rctx =>
+          handle { re: ReextractAction =>
+            (adminRef ? ReExtractContent(rctx.subject, re.entryId)).mapTo[Ack]
           }
         }
       }

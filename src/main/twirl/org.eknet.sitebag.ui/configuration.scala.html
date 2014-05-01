@@ -1,0 +1,231 @@
+@(user: UserInfo, settings: WebSettings)
+<div class="page-header">
+  <h2>Configuration</h2>
+</div>
+<div class="sb-conf-info">
+  <h3>How to add pages</h3>
+  <ul>
+    <li>Paste or drop the url into the text field at the top of the page and hit <em>Submit</em></li>
+    <li>
+      <p>Drag and Drop the bookmarklet below to your bookmark bar and hit it if you are on a page you like to add</p>
+      <p>
+        <a class="btn btn-primary bookmarklet" title="Add to my SiteBag!" href="javascript:@settings.makeBookmarklet(user.name)">
+          Add to my SiteBag!
+        </a>
+      </p>
+      <p>If drag'n'drop does not work with your browser, create a new bookmark and put the following code
+      where you would normally put the url you want to bookmark</p>
+      <pre><code>javascript:@settings.makeBookmarklet(user.name)</code></pre>
+
+      <p>The bookmarklet uses the current url in your browser and sends it to sitebag. It will notify you
+      about the result with a small popup. If you're not logged into sitebag, a login dialog is shown.</p>
+    </li>
+    <li>
+      <p>SiteBag provides a <a href="https://github.com/wallabag/wallabag">wallabag</a> compatible endpoint.
+      That means you can use their nice <a href="https://github.com/wallabag/android-app">Android</a> and
+      <a href="https://github.com/wallabag/ios-app">iOS</a> apps as well as their browser extensions with SiteBag!</p>
+      <p>Configure them using your token and the following url:</p>
+      <pre>@(settings.base.wbUrl(user.name))</pre>
+      <p>The <code>user_id</code> is ignored by sitebag. Set it to anything you like.</p>
+    </li>
+  </ul>
+
+  <h3>How to read them</h3>
+  <ul>
+    <li><p>You can read your entries online using a browser. Thanks to <a href="http://getbootstrap.com">Bootstrap</a>, the pages
+      are also well readable on small screen devices.</p></li>
+    <li>For offline reading, simply use your favourite RSS reader with your feed urls (see below).</li>
+  </ul>
+
+  <h3>Your Feed Urls</h3>
+  <p>You can get your entries as rss feed, too:</p>
+  <ul>
+    <li>This will return all your new entries:
+      <pre>@(settings.base.rssFeedUrl(user.name, user.token.getOrElse(Token("NO_TOKEN")), EntrySearch.empty))</pre>
+    </li>
+    <li>
+      This will return all your new entries that are tagged with `a` and `b` and `c`:
+      <pre>@(settings.base.rssFeedUrl(user.name, user.token.getOrElse(Token("NO_TOKEN")), EntrySearch(Set(Tag("a"), Tag("b"), Tag("c")))))</pre>
+    </li>
+  </ul>
+  <div class="panel panel-info">
+    <div class="panel-heading">
+      <h3 class="panel-title">Note</h3>
+    </div>
+    <div class="panel-body">
+      These URLs change each time you generate a new token.
+    </div>
+  </div>
+
+</div>
+<hr/>
+<div class="sb-conf-newtoken">
+  <h2>Token</h2>
+
+  <p>A token is your secondary password that is generated for you. It is checked for
+  all read-only access. Write access to your data is protected by the main password.</p>
+
+  <p>Your current token is: <b><span id="sb-token-text">@user.token.map(_.token).getOrElse("")</span></b></p>
+
+  <p>
+    <a href="#" id="sb-newtoken-btn" class="btn btn-primary">
+      <span class="glyphicon glyphicon-refresh"></span> Generate new Token
+    </a>
+  </p>
+</div>
+@if(settings.enableChangePassword) {
+<hr/>
+<div class="sb-conf-changepassword">
+  <h2>Change Password</h2>
+
+  <p>Here you can change the main password. You have to re-login after doing that.</p>
+
+  <form role="form" class="form-horizontal">
+    <div class="form-group">
+      <label for="sbpw1" class="control-label col-sm-3">New Password: </label>
+
+      <div class="col-sm-4">
+        <input type="password" name="password" id="sbpw1" class="form-control" required="required">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="sbpw2" class="control-label col-sm-3">Repeat Password: </label>
+
+      <div class="col-sm-4">
+        <input type="password" name="password" id="sbpw2" class="form-control col-sm-10" required="required">
+      </div>
+    </div>
+    <a href="#" class="btn btn-default sb-changepw-btn">Submit</a>
+  </form>
+</div>
+}
+<hr/>
+<div class="sb-reextract">
+  <h2>Re-extract content</h2>
+  <p>The extraction of the main content from web pages will never be perfect. The code
+  will change to adopt new structures and to generally improve extraction. Sitebag stores
+  the original web page, such that you can extract the exact same content anew.</p>
+  <p>Either specify the id of the entry you like to re-extract, or if left empty, all your
+  entries are re-extracted.</p>
+  <div class="panel panel-danger">
+    <div class="panel-heading">
+      <h3 class="panel-title">Warning</h3>
+    </div>
+    <div class="panel-body">
+      The content and title field of your entries are overwritten. All other (meta) data is left
+      as is. If the extraction code changed, the new extracted content may differ from the old one.
+      If things go wrong, your entries could be damaged. Please file a bug so it can be fixed.
+    </div>
+  </div>
+  <form role="form" class="form-horizontal">
+    <div class="form-group">
+      <label for="sb-reextract-entryid" class="control-label col-sm-3">Entry-Id: </label>
+      <div class="col-sm-4">
+        <input type="text" id="sb-reextract-entryid" class="form-control">
+      </div>
+    </div>
+    <a href="#" id="sb-reextract-btn" class="btn btn-default sb-reextract-btn">Submit</a>
+  </form>
+</div>
+@if(user.canCreateUser) {
+<hr/>
+<div class="sb-create-user">
+  <h2>Create a new user account</h2>
+  <p>Use this form to create new users for sitebag. Just provide a username and
+  and password, and the new account is created with the appropriate permissions.</p>
+  <form role="form" class="form-horizontal">
+    <div class="form-group">
+      <label for="sb-username" class="control-label col-sm-3">Username: </label>
+      <div class="col-sm-4">
+        <input type="text" id="sb-username" class="form-control" required="required">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="sbpwcreate1" class="control-label col-sm-3">New Password: </label>
+      <div class="col-sm-4">
+        <input type="password" id="sbpwcreate1" class="form-control" required="required">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="sbpwcreate2" class="control-label col-sm-3">Repeat Password: </label>
+      <div class="col-sm-4">
+        <input type="password" id="sbpwcreate2" class="form-control col-sm-10" required="required">
+      </div>
+    </div>
+    <a href="#" class="btn btn-default sb-createuser-btn">Submit</a>
+  </form>
+</div>
+}
+<hr/>
+<div class="small">
+  <p>This is <em>@(settings.applicationName), v@(settings.applicationVersion)</p>
+  <p>Built from <em>#@(settings.applicationRevision)</em> on <em>@{spray.http.DateTime(settings.applicationBuildTime).toRfc1123DateTimeString}</em></p>
+</div>
+<script type="text/javascript">
+  $('#sb-newtoken-btn').click(function (ev) {
+    spin($(this).parent());
+    $.post(settings.apiPath("/newtoken"), function (data) {
+      stopSpin($(this).parent());
+      feedback(data);
+      if (data.success) {
+        $('#sb-token-text').html(data.value);
+      }
+    });
+    ev.preventDefault();
+    return false;
+  });
+  $('#sb-reextract-btn').click(function(ev) {
+    var entryid = $('#sb-reextract-entryid').val() || null;
+    feedback({ success: true, message: "Starting re-extraction "+(entryid ? "for id '"+entryid+"' ..." : "...") });
+    postJson(settings.apiPath("/reextract"), { "entryId": entryid }, function(data) {
+      feedback(data);
+    });
+    ev.preventDefault();
+    return false;
+  });
+
+  @if(settings.enableChangePassword) {
+    $('.sb-changepw-btn').click(function (ev) {
+      var pw1 = $('#sbpw1').val();
+      var pw2 = $('#sbpw2').val();
+      var self = $(this);
+      if (pw1 !== pw2 || pw1 == "" || pw2 == "") {
+        self.parent().find('.form-group').toggleClass('has-error');
+      } else {
+        spin(self.parent());
+        $.post(settings.apiPath("/changepassword"), { "newpassword": pw1 }, function (data) {
+          stopSpin(self.parent());
+          feedback(data);
+          self.parent().find('input').val("");
+        });
+      }
+      ev.preventDefault();
+      return false;
+    });
+  }
+
+  @if(user.canCreateUser) {
+    $('.sb-createuser-btn').click(function (ev) {
+      var username = $('#sb-username').val();
+      var pw1 = $('#sbpwcreate1').val();
+      var pw2 = $('#sbpwcreate2').val();
+      var self = $(this);
+      if (username == "") {
+        self.parent().find('[type="text"]').parent().addClass('has-error');
+      }
+      else if (pw1 != pw2 || pw1 == "" || pw2 == "") {
+        self.parent().find('[type="text"]').parent().removeClass('has-error');
+        self.parent().find('[type="password"]').parent().addClass('has-error');
+      } else {
+        spin(self.parent());
+        postJson(settings.userPath(username), { "password": pw1 }, function (data) {
+          stopSpin(self.parent());
+          feedback(data);
+          self.parent().find('input').val("");
+        });
+      }
+      ev.preventDefault();
+      return false;
+    });
+  }
+</script>

@@ -1,0 +1,67 @@
+<div id="sb-delete-confirm-modal" class="modal fade">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4 class="modal-title">Confirmation</h4>
+      </div>
+      <div class="modal-body">
+        <p>Really delete this entry?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="sb-confirm-btn btn btn-primary" data-dismiss="modal">Yes</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
+      </div>
+    </div>
+  </div>
+</div><!-- /.modal -->
+
+<script id="sbtpl-entry-actions" type="x-tmpl-mustache">
+  {{#favourite}}
+    <a class="sb-favour-entry" data-action="untag" title="Remove this from your favourites." href="#"><span class="glyphicon glyphicon-star"></span></a> &mdash;
+  {{/favourite}}
+  {{^favourite}}
+    <a class="sb-favour-entry" data-action="tag" title="Add this to your favourites." href="#"><span class="glyphicon glyphicon-star-empty"></span></a> &mdash;
+  {{/favourite}}
+  {{#archived}}
+    <a class="sb-togglearchived-entry" title="Set this entry to 'new'." href="#"><span class="glyphicon glyphicon-eye-close"></span></a> &mdash;
+  {{/archived}}
+  {{^archived}}
+    <a class="sb-togglearchived-entry" title="Set this entry to 'archived'." href="#"><span class="glyphicon glyphicon-check"></span></a> &mdash;
+  {{/archived}}
+  <a class="sb-delete-entry" title="Delete this entry." href="#"><span class="glyphicon glyphicon-trash"></span></a> &mdash;
+  <a class="sb-tag-entry" title="Edit tags for this entry." href="#"><span class="glyphicon glyphicon-tag"></span></a>
+</script>
+<script id="sbtpl-edit-tags-modal" type="x-tmpl-mustache">
+<div id="sb-edit-tags-modal" class="modal fade">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4 class="modal-title">Edit Tags</h4>
+      </div>
+      <div class="modal-body">
+        <form class="sb-tag-edit-form" role="form">
+          <div class="form-group">
+            <label for="sb-tag-input" class="sr-only">Tag name:</label>
+            <input class="form-control typeahead" id="sb-tag-input" type="text" placeholder="Write tag names to add">
+            <a href="#" class="sb-add-btn btn btn-default">Add</a>
+          </div>
+          <div class="form-group">
+            <label for="sb-tag-select" class="sr-only"></label>
+            <select id="sb-tag-select" size="5" class="form-control">
+            </select>
+            <a href="#" class="sb-remove-btn btn btn-default">Remove</a>
+          </div>
+          <span class="help-block">Hit <em>Enter</em> or click <em>Add</em> to add a tag name to the list.
+          Use double-click or click on <em>Remove</em> to remove a selected name from the list.</span>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="sb-confirm-btn btn btn-primary" data-dismiss="modal">Save</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div><!-- /.modal -->
+</script>

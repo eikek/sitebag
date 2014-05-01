@@ -10,11 +10,12 @@ import porter.util._
 import org.eknet.sitebag.model._
 import scala.concurrent.Future
 import scala.util.control.NonFatal
+import org.eknet.sitebag.mongo.ReextractActor
 
 object AdminActor {
-  def apply(storeRef: ActorRef) = Props(classOf[AdminActor], storeRef)
+  def apply(storeRef: ActorRef, reextrRef: ActorRef) = Props(classOf[AdminActor], storeRef, reextrRef)
 }
-class AdminActor(storeRef: ActorRef) extends Actor with ActorLogging {
+class AdminActor(storeRef: ActorRef, reextrRef: ActorRef) extends Actor with ActorLogging {
   import context.dispatcher
 
   private val settings = SitebagSettings(context.system)
@@ -24,7 +25,11 @@ class AdminActor(storeRef: ActorRef) extends Actor with ActorLogging {
   def receive = {
     case CreateUser(account, password) =>
       val group = Group(account, Map.empty, Set(s"sitebag:${account.name}:*"))
-      val acc = Account(name = account, secrets = Password(password) :: Nil)
+      val token = Token.random
+      val acc = Account(
+        name = account,
+        secrets = Password(password) :: token.toSecret :: Nil
+      ).updatedProps(UserInfo.token.set(token))
 
       val f = for {
         cg <- settings.porter.updateGroup(group)
@@ -34,28 +39,30 @@ class AdminActor(storeRef: ActorRef) extends Actor with ActorLogging {
 
     case GenerateToken(account) =>
       val newtoken = Token.random
-      val f = modifyAccount(account)(_.changeSecret(newtoken.toSecret)) map { _ =>
-        TokenResult(success = true, "Token generated", newtoken.token)
+      val f = modifyAccount(account) { acc =>
+        acc.changeSecret(newtoken.toSecret)
+          .updatedProps(UserInfo.token.set(newtoken))
       }
-      f.recover {
-        case NonFatal(x) => TokenResult(success = false, "Token generation failed: "+ x.getLocalizedMessage, "")
+      f map { _ =>
+        Success(newtoken.token, "Token generated")
+      } recover { case NonFatal(x) =>
+        Failure("Token generation failed: "+ x.getLocalizedMessage, Some(x))
       } pipeTo sender
 
     case ChangePassword(account, password) =>
       val f = modifyAccount(account)(_.changeSecret(Password(password)))
       f map { makeResult("Password changed.") } pipeTo sender
+
+    case req: ReExtractContent =>
+      reextrRef forward req
   }
   
   private def modifyAccount(name: Ident)(f: Account => Account) =
-    for {
-      resp <- settings.porter.findAccounts(Set(name))
-      acc <- Future.immediate(resp.accounts.headOption.getOrElse(sys.error(s"No account '$name'")))
-      nacc <- settings.porter.updateAccount(f(acc))
-    } yield nacc
+    settings.porter.updateAccount(name, f)
 
   private def makeResult(msg: String)(of: OperationFinished) = of match {
-    case OperationFinished(true, _) => Result.success(msg)
-    case OperationFinished(false, Some(error)) => Result.failed(error)
-    case _ => Result.failed(s"Unknown error for '$msg'.")
+    case OperationFinished(true, _) => Success(msg)
+    case OperationFinished(false, error) => Failure("", error)
+    case _ => Failure(s"Unknown error for '$msg'.")
   }
 }

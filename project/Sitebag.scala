@@ -2,7 +2,7 @@ import sbt._
 import sbt.Keys._
 
 object Version {
-  val scala = "2.10.3"
+  val scala = "2.10.4"
   val spray = "1.2.1"
   val akka = "2.2.4"
 }
@@ -18,6 +18,7 @@ object Deps {
 
   val akka = Seq(
     "com.typesafe.akka" %% "akka-actor" % Version.akka,
+    "com.typesafe.akka" %% "akka-remote" % Version.akka,
     "com.typesafe.akka" %% "akka-testkit" % Version.akka % "test"
   )
 
@@ -33,18 +34,26 @@ object Deps {
   )
 
   val sprayJson = Seq(
-    "io.spray" %% "spray-json" % "1.2.5"
+    "io.spray" %% "spray-json" % "1.2.6"
   )
 
   val porter = Seq(
-    "org.eknet.porter" %% "porter-api" % "0.2.0-SNAPSHOT",
-    "org.eknet.porter" %% "porter-app" % "0.2.0-SNAPSHOT"
+    "org.eknet.porter" %% "porter-api" % "0.2.0",
+    "org.eknet.porter" %% "porter-app" % "0.2.0"
   )
 
-  val casbah = Seq(
-    "org.mongodb" %% "casbah-commons" % "2.6.5",
-    "org.mongodb" %% "casbah-query" % "2.6.5",
-    "org.mongodb" %% "casbah-core" % "2.6.5"
+  val reactiveMongo = Seq(
+    //use a new version of log4j2, ran into this: https://issues.apache.org/jira/browse/LOG4J2-477
+    //also remove the 14mb dependency scala-compiler, which is not needed in sitebag
+    "org.reactivemongo" %% "reactivemongo" % "0.10.0" excludeAll (
+      ExclusionRule("org.apache.logging.log4j", "log4j-api"),
+      ExclusionRule("org.apache.logging.log4j", "log4j-core"),
+      ExclusionRule("org.scala-lang", "scala-compiler"),
+      ExclusionRule("org.scala-lang", "scala-reflect")
+    ),
+    "org.reactivemongo" %% "reactivemongo-bson" % "0.10.0" intransitive(),
+    "org.apache.logging.log4j" % "log4j-core" % "2.0-rc1",
+    "org.apache.logging.log4j" % "log4j-api" % "2.0-rc1"
   )
 
   val jsoup = Seq(
@@ -58,17 +67,19 @@ object Deps {
 
 object Sitebag extends sbt.Build {
   import sbtbuildinfo.Plugin._
-  
+  import twirl.sbt.TwirlPlugin._
+
   lazy val module = Project(
     id = "sitebag",
     base = file("."),
-    settings = Project.defaultSettings ++ buildInfoSettings ++ Seq(
+    settings = Project.defaultSettings ++ buildInfoSettings ++ Twirl.settings ++ Distribution.distSettings ++ Seq(
       name := "sitebag",
       sourceGenerators in Compile <+= buildInfo,
       buildInfoKeys := Seq(name, version, scalaVersion, buildTimeKey, gitRevKey),
       buildInfoPackage := "org.eknet.sitebag",
+      Twirl.twirlImports := Seq("org.eknet.sitebag.ui._", "org.eknet.sitebag.rest.EntrySearch", "org.eknet.sitebag.model._"),
       libraryDependencies ++= Deps.spray ++ Deps.sprayJson ++
-        Deps.akka ++ Deps.porter ++ Deps.casbah ++ Deps.jsoup ++
+        Deps.akka ++ Deps.porter ++ Deps.reactiveMongo ++ Deps.jsoup ++
         Deps.config ++ Deps.logback ++ Deps.testBasics
     )
   )
@@ -81,8 +92,8 @@ object Sitebag extends sbt.Build {
   }
   
   override lazy val settings = super.settings ++ Seq(
-    version := "0.1.0-SNAPSHOT",
-    resolvers ++= Seq("spray repo" at "http://repo.spray.io"),
+    version := "0.1.0",
+    resolvers ++= Seq("spray repo" at "http://repo.spray.io", "typesafe-releases" at "http://repo.typesafe.com/typesafe/releases", "eknet-maven2" at "https://eknet.org/maven2"),
     publishTo := Some("eknet-maven2" at "https://eknet.org/maven2"),
     credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
     pomIncludeRepository := { _ => false },

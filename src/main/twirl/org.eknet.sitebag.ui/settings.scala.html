@@ -1,0 +1,38 @@
+@(user: UserInfo, settings: WebSettings)
+<script type="text/javascript">
+  var settings = {
+    applicationName: "@settings.applicationName",
+    applicationRevision: "@settings.applicationRevision",
+    applicationVersion: "@settings.applicationVersion",
+    applicationBuildTime: "@settings.applicationBuildTime",
+    bootswatchApi: "@settings.bootswatchApi",
+    themeUrl: "@UserInfo.themeUrl.get(user.settings).getOrElse(UserInfo.defaultThemeUrl)",
+    defaultThemeUrl: "@UserInfo.defaultThemeUrl",
+    username: "@user.name",
+    baseUrl: "@settings.base.baseUrl",
+    pathprefix: "@settings.base.pathPrefix",
+    userPath: function(user) {
+      return settings.pathprefix + 'api/' + user;
+    },
+    apiPath: function(subPath) {
+      if (!subPath) {
+        subPath = "";
+      }
+      return settings.pathprefix + 'api/' + settings.username + subPath;
+    },
+    uiPath: function(subPath) {
+      if (!subPath) {
+        subPath = "";
+      }
+      return settings.pathprefix + 'ui' + subPath;
+    },
+    binPath: function(url) {
+      return settings.pathprefix + 'bin?url='+ encodeURIComponent(url);
+    },
+    isBinPath: function(url) {
+      return url.indexOf(settings.pathprefix+'bin?url=') == 0;
+    },
+    enableHighlightJs: "@settings.enableHighlightJs",
+    highlightJsTheme: "@settings.highlightJsTheme"
+  };
+</script>

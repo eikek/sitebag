@@ -1,42 +1,81 @@
 package org.eknet.sitebag.rest
 
-import porter.app.client.spray.PorterDirectives
-import porter.model.{PasswordCredentials, Ident, Credentials}
+import porter.app.client.spray.{CookieSettings, PorterDirectives}
+import porter.model._
 import spray.routing._
 import scala.concurrent.ExecutionContext
 import akka.util.Timeout
-import porter.auth.AuthResult
 import porter.app.client.PorterContext
+import porter.model.Account
+import org.eknet.sitebag.model.Token
+import spray.httpx.unmarshalling.FromRequestUnmarshaller
 
 trait AuthDirectives extends PorterDirectives with Directives {
+  private val cookieName1 = "SITEBAG_AUTH"
+  private val cookieName2 = "SITEBAG_TOKEN"
 
-  def porter: PorterContext
-  implicit def executionContext: ExecutionContext
-  implicit def timeout: Timeout
+  def setAuthCookies(account: Account, key: Vector[Byte]): Directive0 =
+    setMainCookie(account, key) & setTokenCookie(account, key)
 
-  def authUser(msg: Credentials): Directive1[AuthResult] =
-    authenticateResult(porter, Set(msg))
-
-
-  def authBasic: Directive1[AuthResult] =
-    basicCredentials.flatMap(creds => authenticateResult(porter, creds)).flatMap {
-      case r: AuthResult => provide(r)
-      case x =>
-        reject(httpBasicChallenge(AuthenticationFailedRejection.CredentialsRejected))
+  def setTokenCookie(account: Account, key: Vector[Byte]): Directive0 = {
+    account.secrets.find(_.name == Token.secretName) match {
+      case Some(secret) =>
+        setPorterCookie(account, CookieSettings(cookieKey = key, cookieName = cookieName2, cookieSecure = false), _ => secret)
+      case _ => pass
     }
+  }
 
-  def basicCredentialsOf(user: String): Directive1[Set[Credentials]] =
-    basicCredentials.flatMap(_.toList.head match {
-      case pc: PasswordCredentials if pc.accountName.name == user => provide(Set(pc))
-      case _ => reject(httpBasicChallenge(AuthenticationFailedRejection.CredentialsRejected))
-    })
+  def setMainCookie(account: Account, key: Vector[Byte]): Directive0 = {
+    account.secrets.find(_.name.name startsWith "password.") match {
+      case Some(secret) =>
+        setPorterCookie(account, CookieSettings(cookieKey = key, cookieName = cookieName1, cookieSecure = false), _ => secret)
+      case _ => pass
+    }
+  }
 
-  def checkCreateUser(account: Ident): Directive0 =
-    authz(porter, account, Set("sitebag:createuser"))
+  private def jsonCredentials[T <: PasswordCredentials](implicit jsonf: FromRequestUnmarshaller[T]): Directive1[Set[Credentials]] = {
+    entity(as[T]).flatMap { up =>
+      provide(Set[Credentials](up))
+    }.recover(_ => provide(Set.empty))
+  }
 
-  def checkGenerateToken(foraccount: Ident, account: Ident): Directive0 =
-    authz(porter, account, Set(s"sitebag:${foraccount.name}:generatetoken"))
+  private def toTokenCredentials(set: Set[Credentials]): Set[Credentials] =
+    set.collect({ case pc: PasswordCredentials => TokenCredentials(pc.accountName.name, pc.password) })
 
-  def checkChangePassword(foraccount: Ident, account: Ident): Directive0 =
-    authz(porter, account, Set(s"sitebag:${foraccount.name}:changepassword"))
+  def loginCredentials: Directive1[Set[Credentials]] = {
+    import JsonProtocol._
+    import spray.httpx.SprayJsonSupport._
+    basicCredentials.map(s => s ++ toTokenCredentials(s)) ++
+      jsonCredentials[UserPassCredentials] ++
+      jsonCredentials[TokenCredentials] ++
+      formCredentials("username", "password") ++
+      formCredentials("username", "token").map(toTokenCredentials)
+  }
+
+  def derivedCredentials(cookieKey: Vector[Byte]): Directive1[Set[Credentials]] = {
+    cookieCredentials(cookieKey, cookieName1) ++ cookieCredentials(cookieKey, cookieName2)
+  }
+
+  private def usePorterClasses(creds: Set[Credentials]): Set[Credentials] = creds map {
+    case pc: PasswordCredentials => PasswordCredentials(pc.accountName, pc.password)
+    case x => x
+  }
+  def authc(key: Vector[Byte])(implicit porter: PorterContext, ec: ExecutionContext, to: Timeout): Directive1[Account] = {
+    val main = loginCredentials.flatMap { creds =>
+      authenticateAccount(porter, usePorterClasses(creds)).flatMap { acc =>
+        setTokenCookie(acc, key) & provide(acc)
+      }
+    }
+    val second = derivedCredentials(key).flatMap { creds =>
+      authenticateAccount(porter, creds)
+    }
+    val fail: Directive1[Account] = (loginCredentials ++ derivedCredentials(key)).flatMap { creds =>
+      if (creds.isEmpty) Route.toDirective(sendChallenge(AuthenticationFailedRejection.CredentialsMissing))
+      else Route.toDirective(sendChallenge())
+    }
+    (main | second) | fail
+  }
+
+
 }
+object AuthDirectives extends AuthDirectives
