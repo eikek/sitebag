@@ -29,6 +29,7 @@ package object rest {
     def ++ (other: TagInput): TagInput = this ++ other.tags
   }
   object TagInput extends FieldsDeserialize[TagInput] {
+    val empty = apply(Set.empty)
     def fromFields(fields: Fields): TagInput = {
       val tags = fields.collect { case (k, v) if k == "tag" => Tag(v) }
       val data = fields.toMap
@@ -44,11 +45,11 @@ package object rest {
   case class EntrySearch(tag: TagInput, archived: Option[Boolean], page: Option[Page], complete: Boolean) {
     def toListEntries(subject: Ident): ListEntries =
       ListEntries(subject, tag.tags, archived, page.getOrElse(Page(1, None)), complete)
+    def withTags(tag: Tag, tags: Tag*) = copy(tag = TagInput((tag +: tags).toSet))
   }
   object EntrySearch extends FieldsDeserialize[EntrySearch]  {
+    val allNew = EntrySearch(TagInput.empty, Some(false), None, true)
     val empty = EntrySearch(TagInput(Set.empty), None, None, false)
-    def apply(tags: Set[Tag]): EntrySearch = EntrySearch(TagInput(tags), None, None, false)
-
     def fromFields(fields: Fields): EntrySearch = {
       val tagin = TagInput.fromFields(fields)
       val fmap = fields.toMap
