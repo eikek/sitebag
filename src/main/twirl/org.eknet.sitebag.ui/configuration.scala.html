@@ -41,11 +41,11 @@
   <p>You can get your entries as rss feed, too:</p>
   <ul>
     <li>This will return all your new entries:
-      <pre>@(settings.base.rssFeedUrl(user.name, user.token.getOrElse(Token("NO_TOKEN")), EntrySearch.empty))</pre>
+      <pre>@(settings.base.rssFeedUrl(user.name, user.token.getOrElse(Token("NO_TOKEN")), EntrySearch.allNew))</pre>
     </li>
     <li>
       This will return all your new entries that are tagged with `a` and `b` and `c`:
-      <pre>@(settings.base.rssFeedUrl(user.name, user.token.getOrElse(Token("NO_TOKEN")), EntrySearch(Set(Tag("a"), Tag("b"), Tag("c")))))</pre>
+      <pre>@(settings.base.rssFeedUrl(user.name, user.token.getOrElse(Token("NO_TOKEN")), EntrySearch.allNew.withTags(Tag("a"), Tag("b"), Tag("c"))))</pre>
     </li>
   </ul>
   <div class="panel panel-info">

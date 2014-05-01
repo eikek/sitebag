@@ -77,7 +77,8 @@ class SitebagSettings(system: ExtendedActorSystem) extends Extension {
     val u1 = apiUri(user, s"entries/rss/${token.token}")
     val qmap =  Map(
       "tags" -> q.tag.tags.map(_.name).mkString(","),
-      "archived"-> q.archived.map(_.toString).getOrElse("")
+      "archived"-> q.archived.map(_.toString).getOrElse(""),
+      "complete" -> q.complete.toString
     ).filter(_._2.nonEmpty)
     u1.withQuery(qmap)
   }
