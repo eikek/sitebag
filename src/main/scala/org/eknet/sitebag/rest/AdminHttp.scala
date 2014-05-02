@@ -13,7 +13,8 @@ import akka.actor.ActorRef
 import porter.client.PorterClient
 import porter.app.client.PorterContext
 
-class AdminHttp(val settings: SitebagSettings, adminRef: ActorRef, ec: ExecutionContext, to: Timeout) extends Directives with RestDirectives {
+class AdminHttp(val settings: SitebagSettings, adminRef: ActorRef, ec: ExecutionContext, to: Timeout)
+  extends Directives with RestDirectives with FormUnmarshaller {
 
   def porter = settings.porter
   implicit def timeout = to

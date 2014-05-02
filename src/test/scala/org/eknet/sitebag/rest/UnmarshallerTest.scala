@@ -14,7 +14,6 @@ class UnmarshallerTest extends FunSuite with MustMatchers {
     import spray.json._
     import JsonProtocol._
     import FormUnmarshaller._
-    implicit val taginputFormdata = formDataDelegate[TagInput](TagInput.fromFields)
 
     val jsonSource = """{ "tags": ["a","b","c"] }"""
     val formSource = "tag=a&tag=b&tag=c" :: "tags=a,b,c" :: "tag=a&tags=b,c" :: Nil
@@ -25,11 +24,11 @@ class UnmarshallerTest extends FunSuite with MustMatchers {
 
     //check form
     formSource foreach { src =>
-      taginputFormdata(HttpEntity(formType, src)) must be (Right(expected))
+      tagInputFormData(HttpEntity(formType, src)) must be (Right(expected))
     }
 
     //check either
-    val either = CommonDirectives.unmarshalFormOrJson(taginputFormat, taginputFormdata)
+    val either = CommonDirectives.unmarshalFormOrJson(taginputFormat, tagInputFormData)
     either.apply(HttpEntity(jsonType, jsonSource)) must be (Right(expected))
     formSource foreach { src =>
       either(HttpEntity(formType, src)) must be (Right(expected))
