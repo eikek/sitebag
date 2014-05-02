@@ -22,10 +22,7 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
   import SprayJsonSupport._
 
   private val settings = SitebagSettings(system)
-  private val storeActor = system.actorOf(DummyStoreActor())
-  val extractor = system.actorOf(ExtractionActor(), "extractors")
-  val reextractor = system.actorOf(ReextractActor(extractor))
-  private val adminActor = system.actorOf(AdminActor(storeActor, reextractor))
+  private val adminActor = system.actorOf(AdminActor(null))
   implicit val routeTo = RouteTestTimeout(FiniteDuration(10, TimeUnit.SECONDS))
 
   def route(subject: String) =
@@ -36,25 +33,23 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
   def asAdmin = as("admin")
   def asSuperuser = as("superuser")
 
-  action {
-    Await.ready(settings.mongoClient.db.drop(), timeout.duration)
-  }
-
   "The admin http service" should {
     "create new user with success for admins" in {
-      Put("/", NewPassword("superword")) ~> asSuperuser ~> route("textx12") ~> check {
+      val name1 = commons.randomWord
+      val name2 = commons.randomWord
+      Put("/", NewPassword("superword")) ~> asSuperuser ~> route(name1) ~> check {
         println(responseAs[String])
         status === StatusCodes.OK
         responseAs[Ack].isSuccess === true
       }
-      Put("/", NewPassword("superword").toFormData) ~> asSuperuser ~> route("testx13") ~> check {
+      Put("/", NewPassword("superword").toFormData) ~> asSuperuser ~> route(name2) ~> check {
         status === StatusCodes.OK
         responseAs[Ack].isSuccess === true
       }
     }
 
     "generate new tokens for existing user" in {
-      Post("/newtoken") ~> asSuperuser ~> route("admin") ~> check {
+      Post("/newtoken") ~> asSuperuser ~> route("superuser") ~> check {
         status === StatusCodes.OK
         responseAs[StringResult] match {
           case Success(Some(token), _) => assert(token.length > 0)
@@ -64,17 +59,13 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
       }
     }
     "deny generating tokens for unauthorized user" in {
-      Post("/newtoken") ~> asNobody ~> route("admin") ~> check {
+      Post("/newtoken") ~> asNobody ~> route("superuser") ~> check {
         rejection === AuthorizationFailedRejection
       }
     }
 
     "be able to change own password" in {
-      Put("/", NewPassword("superword")) ~> asSuperuser ~> route("test55") ~> check {
-        status === StatusCodes.OK
-        responseAs[Ack].isSuccess === true
-      }
-      Post("/changepassword", NewPassword("xyz123")) ~> asSuperuser ~> route("test55") ~> check {
+      Post("/changepassword", NewPassword("xyz123")) ~> as("mary") ~> route("mary") ~> check {
         status === StatusCodes.OK
         responseAs[Ack] match {
           case Success(_, _) => true

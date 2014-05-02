@@ -41,23 +41,16 @@ class AuthRouteSpec extends Specification with Specs2RouteTest with HttpService 
 
   def as(username: String, password: String = "test") = addCredentials(BasicHttpCredentials(username, password))
 
-  Await.ready(settings.mongoClient.db.drop(), timeoutDur)
-  Await.ready(porter.updateAccount(Account(
-    name = "testuser",
-    groups = Set("testuser"),
-    secrets = Seq(Password("test"), Token("abc").toSecret))
-  ), timeoutDur)
-
   "The withAccount directive" should {
     "allow to authenticate with json params" in {
-      Post("/", Payload("testuser", "test", "apple")) ~> mainRoute("johnny") ~> check {
-        responseAs[String] === "testuser:johnny"
+      Post("/", Payload("superuser2", "test", "apple")) ~> mainRoute("johnny") ~> check {
+        responseAs[String] === "superuser2:johnny"
         response.headers.count(_ is "set-cookie") === 1
       }
     }
     "allow to authenticate via formdata" in {
-      Post("/", FormData(Map("username" -> "testuser", "password" -> "test", "other" -> "bla"))) ~> mainRoute("johnny") ~> check {
-        responseAs[String] === "testuser:johnny"
+      Post("/", FormData(Map("username" -> "superuser2", "password" -> "test", "other" -> "bla"))) ~> mainRoute("johnny") ~> check {
+        responseAs[String] === "superuser2:johnny"
         response.headers.count(_ is "set-cookie") === 1
       }
     }
@@ -69,18 +62,18 @@ class AuthRouteSpec extends Specification with Specs2RouteTest with HttpService 
     }
     "allow to authenticate via cookies" in {
       var cookies: Seq[`Set-Cookie`] = Nil
-      Post("/") ~> as("testuser") ~> mainRoute("johnny") ~> check {
-        responseAs[String] === "testuser:johnny"
+      Post("/") ~> as("superuser2") ~> mainRoute("johnny") ~> check {
+        responseAs[String] === "superuser2:johnny"
         cookies = response.headers.collect { case sc: `Set-Cookie` => sc }
         cookies.size === 1
       }
       Post("/") ~> addHeader(Cookie(cookies.map(_.cookie))) ~> tokenRoute("johnny") ~> check {
-        responseAs[String] === "testuser:johnny"
+        responseAs[String] === "superuser2:johnny"
         response.headers.count(_ is "set-cookie") === 0
       }
     }
     "reject tokens from main route" in {
-      Post("/", PayloadToken("testuser", "abc", "bla")) ~> mainRoute("johnny") ~> check {
+      Post("/", PayloadToken("superuser2", "abc", "bla")) ~> mainRoute("johnny") ~> check {
         rejection === PorterDirectives.httpBasicChallenge(AuthenticationFailedRejection.CredentialsRejected)
       }
     }
@@ -90,24 +83,24 @@ class AuthRouteSpec extends Specification with Specs2RouteTest with HttpService 
       }
     }
     "allow to authenticate with a 'token' in tokenRoute" in {
-      Post("/", PayloadToken("testuser", "abc", "blabla")) ~> tokenRoute("johnny") ~> check {
-        responseAs[String] === "testuser:johnny"
+      Post("/", PayloadToken("superuser2", "abc", "blabla")) ~> tokenRoute("johnny") ~> check {
+        responseAs[String] === "superuser2:johnny"
         response.headers.count(_ is "set-cookie") === 1
       }
-      Post("/", FormData(Map("username" -> "testuser", "token" -> "abc", "other" -> "bla"))) ~> tokenRoute("johnny") ~> check {
-        responseAs[String] === "testuser:johnny"
+      Post("/", FormData(Map("username" -> "superuser2", "token" -> "abc", "other" -> "bla"))) ~> tokenRoute("johnny") ~> check {
+        responseAs[String] === "superuser2:johnny"
         response.headers.count(_ is "set-cookie") === 1
       }
     }
     "allow to authenticate via token cookies" in {
       var cookies: Seq[`Set-Cookie`] = Nil
-      Post("/", PayloadToken("testuser", "abc", "blup")) ~> tokenRoute("johnny") ~> check {
+      Post("/", PayloadToken("superuser2", "abc", "blup")) ~> tokenRoute("johnny") ~> check {
         cookies = response.headers.collect { case sc: `Set-Cookie` => sc }
         status === StatusCodes.OK
       }
       assert(cookies.size === 1)
       Post("/") ~> addHeader(Cookie(cookies.map(_.cookie))) ~> tokenRoute("johnny") ~> check {
-        responseAs[String] === "testuser:johnny"
+        responseAs[String] === "superuser2:johnny"
         response.headers.count(_ is "set-cookie") === 0
       }
       Post("/") ~> addHeader(Cookie(cookies.map(_.cookie))) ~> mainRoute("johnny") ~> check {
@@ -116,7 +109,7 @@ class AuthRouteSpec extends Specification with Specs2RouteTest with HttpService 
     }
     "deny to authenticate via token cookie at main route" in {
       var cookies: Seq[`Set-Cookie`] = Nil
-      Post("/", PayloadToken("testuser", "abc", "blup")) ~> tokenRoute("johnny") ~> check {
+      Post("/", PayloadToken("superuser2", "abc", "blup")) ~> tokenRoute("johnny") ~> check {
         cookies = response.headers.collect { case sc: `Set-Cookie` => sc }
         status === StatusCodes.OK
       }

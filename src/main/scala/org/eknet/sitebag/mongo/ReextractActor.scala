@@ -11,10 +11,14 @@ import org.eknet.sitebag.ReExtractContent
 import akka.util.Timeout
 import scala.concurrent.Future
 
-class ReextractActor(extrRef: ActorRef) extends Actor with ActorLogging {
-  private val worker = context.actorOf(ReextractEntryWorker(extrRef), "extract-entry")
+class ReextractActor(extrRef: ActorRef, dbname: Option[String]) extends Actor with ActorLogging {
   private var account2Worker = Map.empty[Ident, ActorRef]
   private var worker2Account = Map.empty[ActorRef, Ident]
+  private val settings = SitebagSettings(context.system)
+
+  import context.dispatcher
+  private val mongo = dbname.map(settings.makeMongoClient) getOrElse settings.defaultMongoClient
+  private val worker = context.actorOf(ReextractEntryWorker(extrRef, mongo), "extract-entry")
 
   def receive = {
     case ReExtractContent(account, None) =>
@@ -22,7 +26,7 @@ class ReextractActor(extrRef: ActorRef) extends Actor with ActorLogging {
         sender ! Failure("A re-extraction job is already running for you.")
       } else {
         val w = context.watch(context.actorOf(Props(
-          new ReextractAllWorker(worker, account)),
+          new ReextractAllWorker(worker, account, mongo)),
           s"${account.name}-extraction"))
         account2Worker += (account -> w)
         worker2Account += (w -> account)
@@ -41,10 +45,10 @@ class ReextractActor(extrRef: ActorRef) extends Actor with ActorLogging {
   }
 }
 object ReextractActor {
-
-  def apply(extrRef: ActorRef) = Props(classOf[ReextractActor], extrRef)
+  def apply(extrRef: ActorRef): Props = Props(classOf[ReextractActor], extrRef, None)
+  def apply(extrRef: ActorRef, dbname: String): Props = Props(classOf[ReextractActor], extrRef, Some(dbname))
 }
-class ReextractAllWorker(worker: ActorRef, account: Ident) extends Actor with ActorLogging {
+class ReextractAllWorker(worker: ActorRef, account: Ident, mongo: SitebagMongo) extends Actor with ActorLogging {
 
   context.setReceiveTimeout(10.minutes)
   import context.dispatcher
@@ -52,7 +56,6 @@ class ReextractAllWorker(worker: ActorRef, account: Ident) extends Actor with Ac
   private[this] var numberOfJobs = -1
   private[this] val numberOfJobsDone = Iterator from 0
 
-  val mongo = SitebagSettings(context.system).mongoClient
   case class Finished(msg: String, error: Option[Throwable]) extends Serializable
   case class PushDone(n: Int)
 
@@ -99,12 +102,11 @@ class ReextractAllWorker(worker: ActorRef, account: Ident) extends Actor with Ac
   }
 }
 
-class ReextractEntryWorker(extrRef: ActorRef) extends Actor with ActorLogging {
+class ReextractEntryWorker(extrRef: ActorRef, mongo: SitebagMongo) extends Actor with ActorLogging {
   import akka.pattern.ask
   import akka.pattern.pipe
   import context.dispatcher
 
-  private val mongo = SitebagSettings(context.system).mongoClient
   private implicit val timeout: Timeout = 10.seconds
   type ExtractResult = Result[ExtractedContent]
 
@@ -150,7 +152,7 @@ class ReextractEntryWorker(extrRef: ActorRef) extends Actor with ActorLogging {
 }
 object ReextractEntryWorker {
   /** Needs an [[org.eknet.sitebag.ExtractionActor]] */
-  def apply(extrRef: ActorRef) = Props(classOf[ReextractEntryWorker], extrRef)
+  def apply(extrRef: ActorRef, mongo: SitebagMongo) = Props(classOf[ReextractEntryWorker], extrRef, mongo)
 
   /** Answers with [[org.eknet.sitebag.Ack]] to these messages. */
   case class ExtractJob(account: Ident, entryId: String)

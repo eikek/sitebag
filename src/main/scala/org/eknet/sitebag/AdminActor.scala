@@ -13,9 +13,9 @@ import scala.util.control.NonFatal
 import org.eknet.sitebag.mongo.ReextractActor
 
 object AdminActor {
-  def apply(storeRef: ActorRef, reextrRef: ActorRef) = Props(classOf[AdminActor], storeRef, reextrRef)
+  def apply(reextrRef: ActorRef) = Props(classOf[AdminActor], reextrRef)
 }
-class AdminActor(storeRef: ActorRef, reextrRef: ActorRef) extends Actor with ActorLogging {
+class AdminActor(reextrRef: ActorRef) extends Actor with ActorLogging {
   import context.dispatcher
 
   private val settings = SitebagSettings(context.system)

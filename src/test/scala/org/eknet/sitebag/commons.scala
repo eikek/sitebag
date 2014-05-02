@@ -12,7 +12,7 @@ import scala.util.Random
 object commons {
 
   val htmlType = ContentType(MediaTypes.`text/html`, HttpCharsets.`UTF-8`)
-  val random = new Random()
+  private val random = new Random()
 
   def html(name: String) = {
     val url = getClass.getResource(s"/$name")
@@ -34,7 +34,7 @@ object commons {
   private val letters = ('a' to 'z') ++ ('A' to 'Z')
   private def letter = letters(random.nextInt(letters.length))
 
-  private def randomWord = {
+  def randomWord = {
     val len = random.nextInt(10) + 7
     Iterator.continually(letter).take(len).mkString
   }

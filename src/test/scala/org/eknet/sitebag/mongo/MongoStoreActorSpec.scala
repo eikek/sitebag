@@ -2,31 +2,43 @@ package org.eknet.sitebag.mongo
 
 import scala.concurrent.duration._
 import akka.testkit.{ImplicitSender, TestKit}
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, WordSpecLike}
 import reactivemongo.bson.BSONDocument
 import org.eknet.sitebag.model._
 import spray.http.{ContentTypes, DateTime, MediaTypes, ContentType}
-import akka.util.ByteString
+import akka.util.{Timeout, ByteString}
 import scala.util.Try
 import scala.concurrent.{Future, Await}
 import org.eknet.sitebag._
 import org.eknet.sitebag.content.Content
 import org.eknet.sitebag.model.FullPageEntry
+import reactivemongo.api.collections.default.BSONCollection
 
 class MongoStoreActorSpec extends TestKit(ActorSystem("MongoStoreActorSpec", ConfigFactory.load("reference")))
   with WordSpecLike with BeforeAndAfterAll with BeforeAndAfter with ImplicitSender {
 
   import system.dispatcher
-  val storeRef = system.actorOf(MongoStoreActor())
+  import akka.pattern.ask
+
   val settings = SitebagSettings(system)
+  implicit val timeout: Timeout = 5.seconds
+
+  var usedDbs: List[String] = Nil
+  var dbname = ""
+  var mongo: SitebagMongo = _
+  var storeRef: ActorRef = _
 
   before {
-    Await.ready(settings.mongoClient.db.drop(), 10.seconds)
+    dbname = "mongotest" + System.currentTimeMillis()
+    usedDbs = dbname :: usedDbs
+    mongo = settings.makeMongoClient(dbname)
+    storeRef = system.actorOf(MongoStoreActor(dbname))
   }
 
   override def afterAll() = {
+    usedDbs foreach { name => Await.ready(settings.makeMongoClient(name).db.drop(), 10.seconds) }
     system.shutdown()
   }
 
@@ -42,25 +54,21 @@ class MongoStoreActorSpec extends TestKit(ActorSystem("MongoStoreActorSpec", Con
       storeRef ! GetEntry("testuser15", entry.id)
       expectMsg(5.seconds, Success(None))
 
-      Thread.sleep(1090)
-      storeRef ! GetEntryContent("testuser", entry.id)
-      expectMsgPF(hint = "Success(Content(..))") {
-        case Success(Some(content: Content), _) =>
-          assert(content.data === c.data)
-      }
+      def f = (storeRef ? GetEntryContent("testuser", entry.id)).mapTo[Result[Content]]
+      awaitCond(Await.result(f.map(r => r.asInstanceOf[Success[Content]].value.isDefined), 4.seconds), 12.seconds)
     }
 
     "store multiple same binaries once" in {
       val bin1 = Binary("12345", "http://google.com/image", ByteString("bla"), "12345", ContentTypes.`application/octet-stream`)
       val bin2 = bin1.copy(url = "http://ddg.gg/image")
 
-      Await.ready(settings.mongoClient.addBinary(bin1), 5.seconds)
-      Await.ready(settings.mongoClient.addBinary(bin2), 5.seconds)
-      val Success(Some(xbin1), _) = Await.result(settings.mongoClient.findBinaryByUrl(bin1.url.toString()), 5.seconds)
-      val Success(Some(xbin2), _) = Await.result(settings.mongoClient.findBinaryByUrl(bin2.url.toString()), 5.seconds)
+      Await.ready(mongo.addBinary(bin1), 5.seconds)
+      Await.ready(mongo.addBinary(bin2), 5.seconds)
+      val Success(Some(xbin1), _) = Await.result(mongo.findBinaryByUrl(bin1.url.toString()), 5.seconds)
+      val Success(Some(xbin2), _) = Await.result(mongo.findBinaryByUrl(bin2.url.toString()), 5.seconds)
       assert(xbin1.id === xbin2.id)
       assert(xbin1.id === bin2.id)
-      val all:Future[List[BSONDocument]] = settings.mongoClient.db("fs.files").find(BSONDocument()).cursor[BSONDocument].collect[List]()
+      val all:Future[List[BSONDocument]] = mongo.db.apply[BSONCollection]("fs.files").find(BSONDocument()).cursor[BSONDocument].collect[List]()
       val list = Await.result(all, 4.seconds)
       assert(list.length === 1)
     }
@@ -83,28 +91,22 @@ class MongoStoreActorSpec extends TestKit(ActorSystem("MongoStoreActorSpec", Con
     }
 
     "Delete entries" in {
-      awaitCond(Await.result(settings.mongoClient.countBinaries().map(_ == 0), 4.seconds), 4.seconds)
-      var numsZero = Await.result(settings.mongoClient.countBinaries(), 5.seconds)
-      assert(numsZero === 0)
+      awaitCond(Await.result(mongo.countBinaries().map(_ == 0), 4.seconds), 12.seconds)
       val fentry@FullPageEntry(entry, content) = commons.newEntry
       storeRef ! AddEntry("testuser", fentry)
       expectMsg(5.seconds, Success("Page added."))
-      Thread.sleep(1500) //make sure content-id is set
-      numsZero = Await.result(settings.mongoClient.countBinaries(), 5.seconds)
-      assert(numsZero === 1)
-      storeRef ! AddBinary("testuser", entry.id, Binary(Content("http://anotherfile", ByteString("blup blup"))))
+      awaitCond(Await.result(mongo.countBinaries().map(_ == 1), 4.seconds), 12.seconds)
+      storeRef ! AddBinary("testuser", entry.id, Binary(commons.newEntry.page))
       expectMsg(Success(None, "Binary saved."))
-      numsZero = Await.result(settings.mongoClient.countBinaries(), 5.seconds)
-      assert(numsZero === 2)
-      storeRef ! GetEntryContent("testuser", entry.id)
-      expectMsgPF(hint = "Success(Some(Content(...)))") { case Success(Some(c: Content), _) => true }
+      awaitCond(Await.result(mongo.countBinaries().map(_ == 2), 4.seconds), 12.seconds)
+      def f = (storeRef ? GetEntryContent("testuser", entry.id)).mapTo[Result[Content]]
+      awaitCond(Await.result(f.map(r => r.asInstanceOf[Success[Content]].value.isDefined), 4.seconds), 12.seconds)
 
       storeRef ! DropEntry("testuser", entry.id)
       expectMsg(Success("Page removed."))
       storeRef ! GetEntry("testuser", entry.id)
       expectMsg(Success(None))
-      numsZero = Await.result(settings.mongoClient.countBinaries(), 5.seconds)
-      assert(numsZero === 0)
+      awaitCond(Await.result(mongo.countBinaries().map(_ == 0), 4.seconds), 12.seconds)
       storeRef ! GetBinaryById(Binary(content).id)
       expectMsg(Success(None))
     }
@@ -166,10 +168,10 @@ class MongoStoreActorSpec extends TestKit(ActorSystem("MongoStoreActorSpec", Con
 
     "list tags for an entry" in {
       val fentry@FullPageEntry(entry, content) = commons.newEntry
-      val f = settings.mongoClient.addEntry("testuser", fentry)
+      val f = mongo.addEntry("testuser", fentry)
       Await.ready(f, 5.seconds)
 
-      Await.ready(settings.mongoClient.tagEntries("testuser", entry.id, Set(Tag("x"), Tag("zz"))), 5.seconds)
+      Await.ready(mongo.tagEntries("testuser", entry.id, Set(Tag("x"), Tag("zz"))), 5.seconds)
 
       storeRef ! GetTags("testuser", entry.id)
       expectMsg(Success(List(Tag("x"), Tag("zz"))))
