@@ -16,15 +16,16 @@ class SitebagService extends HttpServiceActor with Actor with ActorLogging with 
   implicit def executionContext = context.dispatcher
   implicit val s = context.system
 
+  val settings = SitebagSettings(context.system)
+
   private val nCpu = Runtime.getRuntime.availableProcessors()
   val extractor = context.actorOf(ExtractionActor().withRouter(RoundRobinRouter(nCpu)), "extractors")
   val reextractor = context.actorOf(ReextractActor(extractor), "re-extractor")
-  val store = context.actorOf(MongoStoreActor(), "mongo-store")
+  val store = context.actorOf(MongoStoreActor(settings.dbName), "mongo-store")
   val httpclient = context.actorOf(HttpClientActor(extractor), "http-client")
   val app = context.actorOf(AppActor(httpclient, store), "app")
-  val admin = context.actorOf(AdminActor(store, reextractor), "admin")
 
-  val settings = SitebagSettings(context.system)
+  val admin = context.actorOf(AdminActor(reextractor), "admin")
   val adminHttp = new AdminHttp(settings, admin, executionContext, timeout)
   val appHttp = new AppHttp(settings, app, context, executionContext, timeout)
   val webHttp = new WebHttp(settings, store, context, timeout)

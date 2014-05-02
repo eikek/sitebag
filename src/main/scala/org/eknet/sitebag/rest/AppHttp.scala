@@ -15,7 +15,7 @@ import porter.model.Ident
 import spray.httpx.marshalling.ToResponseMarshaller
 
 class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: ActorRefFactory, ec: ExecutionContext, to: Timeout)
-  extends Directives with RestDirectives {
+  extends Directives with RestDirectives with FormUnmarshaller {
 
   implicit def timeout = to
   implicit def executionContext = ec
@@ -23,7 +23,6 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
   import spray.json._
   import JsonProtocol._
   import SprayJsonSupport._
-  import FormUnmarshaller._
 
   def getEntry(porter: PorterContext, subject: String, entryid: String, meta: Boolean = false): Route = {
     checkAccess(subject, porter, checkGetEntry(entryid)) { rctx =>

@@ -16,6 +16,7 @@ import org.eknet.sitebag.rest.EntrySearch
 import org.eknet.sitebag.mongo.SitebagMongo
 import reactivemongo.api.MongoDriver
 import akka.event.Logging
+import scala.concurrent.ExecutionContext
 
 class SitebagSettings(system: ExtendedActorSystem) extends Extension {
   private val config = system.settings.config.getConfig("sitebag")
@@ -58,7 +59,10 @@ class SitebagSettings(system: ExtendedActorSystem) extends Extension {
   val tokenContext = PorterContext(_porterRef, porterRealm, Token.Decider)
   val cookieKey = Try(config.getString("cookie-key")).map(Base64.decode).getOrElse(AES.generateRandomKey).toVector
 
-  lazy val mongoClient = new SitebagMongo(new MongoDriver(system), mongoDbUrl, dbName)(system.dispatcher)
+  private lazy val mongoDriver = new MongoDriver(system)
+  def makeMongoClient(dbname: String)(implicit ec: ExecutionContext) =
+    new SitebagMongo(mongoDriver, mongoDbUrl, dbname)
+  lazy val defaultMongoClient = makeMongoClient(dbName)(system.dispatcher)
 
   val bindPort = config.getInt("bind-port")
   val bindHost = config.getString("bind-host")

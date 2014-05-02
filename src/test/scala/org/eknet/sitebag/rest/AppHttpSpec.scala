@@ -4,8 +4,8 @@ import scala.concurrent.duration._
 import org.specs2.mutable.Specification
 import akka.util.Timeout
 import java.util.concurrent.TimeUnit
-import spray.routing.HttpService
-import spray.httpx.SprayJsonSupport
+import spray.routing.{RequestContext, HttpService}
+import spray.httpx.{TransformerAux, SprayJsonSupport}
 import spray.http._
 import spray.testkit.Specs2RouteTest
 import porter.model.Ident
@@ -31,7 +31,7 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
   val entry = DummyStoreActor.existingEntry
 
   def as(username: Ident, password: String = "test") = addCredentials(BasicHttpCredentials(username.name, password))
-  def asSuperuser = as(PorterStore.account.name, PorterStore.password)
+  def asSuperuser = as(PorterStore.superuser.name, PorterStore.password)
 
   def assertAck = {
     responseAs[Ack] match {
@@ -43,7 +43,7 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
 
   "The app http service" should {
     "add a page entry" in {
-      Put("/entry", RAdd("https://dummy.org/test.html", None, Set.empty)) ~> asSuperuser ~> route("testuser") ~> check {
+      Put("/entry", RAdd("https://dummy.org/test.html", None, Set.empty)) ~> as("mary") ~> route("mary") ~> check {
         status === StatusCodes.OK
         responseAs[StringResult] match {
           case Success(Some(value), _ ) => assert(value.length > 0)
@@ -53,7 +53,7 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
       }
     }
     "get a page entry" in {
-      Get("/entry/"+ entry.id) ~> asSuperuser ~> route("testuser") ~> check {
+      Get("/entry/"+ entry.id) ~> as("mary", "abc") ~> route("mary") ~> check {
         responseAs[Result[PageEntry]] match {
           case Success(Some(e), _) =>
             assert(e.title === entry.title)
@@ -62,7 +62,7 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
         }
         true
       }
-      Get("/entry?id="+DummyStoreActor.existingEntry.id) ~> asSuperuser ~> route("testuser") ~> check {
+      Get("/entry?id="+DummyStoreActor.existingEntry.id) ~> as("mary", "abc") ~> route("mary") ~> check {
         responseAs[Result[PageEntry]] match {
           case Success(Some(e), _) =>
             assert(e.title === entry.title)
@@ -73,46 +73,46 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
       }
     }
     "delete a page entry" in {
-      Delete("/entry/"+ entry.id) ~> asSuperuser ~> route("testuser") ~> check {
+      Delete("/entry/"+ entry.id) ~> as("mary") ~> route("mary") ~> check {
         assertAck
       }
-      Post("/entry/"+ entry.id, DeleteAction(true)) ~> asSuperuser ~> route("testuser") ~> check {
+      Post("/entry/"+ entry.id, DeleteAction(true)) ~> as("mary") ~> route("mary") ~> check {
         responseAs[Ack].message === "Page removed."
         assertAck
       }
-      Post("/entry/" + entry.id, FormData(Map("delete" -> ""))) ~> asSuperuser ~> route("testuser") ~> check {
+      Post("/entry/" + entry.id, FormData(Map("delete" -> ""))) ~> as("mary") ~> route("mary") ~> check {
         responseAs[Ack].message === "Page removed."
         assertAck
       }
     }
     "toggle and set archived status" in {
-      Post(s"/entry/${entry.id}/togglearchived") ~> asSuperuser ~> route("superadmin") ~> check {
+      Post(s"/entry/${entry.id}/togglearchived") ~> as("mary") ~> route("mary") ~> check {
         assertAck
       }
-      Post(s"/entry/${entry.id}/setarchived", Flag(true)) ~> asSuperuser ~> route("superadmin") ~> check {
+      Post(s"/entry/${entry.id}/setarchived", Flag(true)) ~> as("mary") ~> route("mary") ~> check {
         assertAck
       }
-      Post(s"/entry/${entry.id}/setarchived", Flag(true).toFormData) ~> asSuperuser ~> route("superadmin") ~> check {
+      Post(s"/entry/${entry.id}/setarchived", Flag(true).toFormData) ~> as("mary") ~> route("mary") ~> check {
         assertAck
       }
     }
     "tag and untag entries" in {
-      Post(s"/entry/${entry.id}/tag", TagInput(Set(Tag.favourite))) ~> asSuperuser ~> route("superadmin") ~> check {
+      Post(s"/entry/${entry.id}/tag", TagInput(Set(Tag.favourite))) ~> as("mary") ~> route("mary") ~> check {
         assertAck
       }
-      Post(s"/entry/${entry.id}/untag", TagInput(Set(Tag.favourite))) ~> asSuperuser ~> route("superadmin") ~> check {
+      Post(s"/entry/${entry.id}/untag", TagInput(Set(Tag.favourite))) ~> as("mary") ~> route("mary") ~> check {
         assertAck
       }
     }
     "list tags" in {
-      Get("/tags", TagFilter(".*")) ~> asSuperuser ~> route("superadmin") ~> check {
+      Get("/tags", TagFilter(".*")) ~> as("mary") ~> route("mary") ~> check {
         responseAs[Result[TagList]] match {
           case Success(Some(list), _) => assert(list === DummyStoreActor.tagList)
           case x => sys.error("Invalid response: "+x)
         }
         true
       }
-      Get("/tags") ~> asSuperuser ~> route("superadmin") ~> check {
+      Get("/tags") ~> as("mary") ~> route("mary") ~> check {
         responseAs[Result[TagList]] match {
           case Success(Some(list), _) => assert(list === DummyStoreActor.tagList)
           case x => sys.error("Invalid response: "+x)

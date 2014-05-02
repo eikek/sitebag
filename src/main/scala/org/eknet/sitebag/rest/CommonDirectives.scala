@@ -7,22 +7,20 @@ import spray.json.RootJsonFormat
 import spray.httpx.SprayJsonSupport
 import java.util.Locale
 import spray.http.HttpHeaders
-import porter.model.Account
 import porter.model.PropertyList._
 import porter.model.Account
 import scala.Some
 import scala.util.Try
-import spray.routing.directives.ParamDefMagnet
 
 trait CommonDirectives extends Directives with FormUnmarshaller {
 
-  def unmarshalFormOrJson[A](json: RootJsonFormat[A], fdm: Unmarshaller[A]) =
+  def unmarshalFormOrJson[A](json: RootJsonFormat[A], fdm: FormDataUnmarshaller[A]) =
     Unmarshaller.oneOf(SprayJsonSupport.sprayJsonUnmarshaller(json), fdm)
 
-  implicit def unm[A, B](implicit json: RootJsonFormat[A], fdm: Unmarshaller[A], m: ToResponseMarshaller[B]) = UnmarshallerLifting.fromRequestUnmarshaller(
+  implicit def unm[A, B](implicit json: RootJsonFormat[A], fdm: FormDataUnmarshaller[A], m: ToResponseMarshaller[B]) = UnmarshallerLifting.fromRequestUnmarshaller(
     UnmarshallerLifting.fromMessageUnmarshaller(unmarshalFormOrJson(json, fdm)))
 
-  def handle[A, B](f: A => B)(implicit json: RootJsonFormat[A], fdm: Unmarshaller[A], m: ToResponseMarshaller[B]): Route = {
+  def handle[A, B](f: A => B)(implicit json: RootJsonFormat[A], fdm: FormDataUnmarshaller[A], m: ToResponseMarshaller[B]): Route = {
     handleWith(f)
   }
 

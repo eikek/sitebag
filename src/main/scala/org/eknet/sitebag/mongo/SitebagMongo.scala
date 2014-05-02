@@ -34,6 +34,12 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
   type BD = BSONDocument
   val BD = BSONDocument
 
+
+  object DuplicateKey {
+    def unapply(e: LastError): Option[LastError] =
+      if (e.code == Some(11000)) Some(e) else None
+  }
+
   private val errorLogger: PartialFunction[Throwable, Any] = {
     case e => new Exception("Error completing mongo-db future.", e).printStackTrace()
   }
@@ -163,7 +169,7 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
         }
     }
     val f = entries(account).insert(entry.entry).recover({
-      case x: LastError if x.code == Some(11000) => successLastError("Page already present.")
+      case DuplicateKey(x) => successLastError("Page already present.")
     }).makeResult("Page added.")
     f.onSuccess(addcontentId)
     f
