@@ -183,12 +183,12 @@ class MongoStoreActorSpec extends TestKit(ActorSystem("MongoStoreActorSpec", Con
       expectMsg(5.seconds, Success("Page added."))
 
       storeRef ! SetArchived("testuser", entry.id, true)
-      expectMsg(Success("Archived status changed."))
+      expectMsg(Success(true, "Archived status changed."))
       storeRef ! ListEntries("testuser", Set.empty, Some(true))
       expectMsg(Success(List(entry.copy(archived = true))))
 
       storeRef ! ToggleArchived("testuser", entry.id)
-      expectMsg(Success("Archived status changed."))
+      expectMsg(Success(false, "Archived status changed."))
       storeRef ! ListEntries("testuser", Set.empty, Some(true))
       expectMsg(Success(Nil))
     }
@@ -237,7 +237,7 @@ class MongoStoreActorSpec extends TestKit(ActorSystem("MongoStoreActorSpec", Con
       Thread.sleep(800)
 
       storeRef ! SetArchived("testuser", entry.id, true, DateTime.now - (3 * 24 * 60 * 60 * 1000L))
-      expectMsg(Success("Archived status unchanged."))
+      expectMsg(Success(None, "Archived status unchanged."))
       storeRef ! ListEntries("testuser", Set.empty, Some(true))
       expectMsg(Success(Nil))
       storeRef ! ListEntries("testuser", Set.empty, Some(false))

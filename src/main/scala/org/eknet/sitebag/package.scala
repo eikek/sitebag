@@ -31,7 +31,7 @@ package object sitebag {
   case class AddBinary(account: Ident, entryId: String, bin: Binary) extends StoreMessage
   case class GetBinaryById(id: String) extends StoreMessage
   case class GetBinaryByUrl(url: String) extends StoreMessage
-  case class ListEntries(account: Ident, tag: Set[Tag], archived: Option[Boolean], page: Page = Page(1, None), complete: Boolean = true)
+  case class ListEntries(account: Ident, tag: Set[Tag], archived: Option[Boolean], page: Page = Page(1, None), complete: Boolean = true) extends StoreMessage
   case class ListTags(account: Ident, regex: String = ".*") extends StoreMessage
   case class TagList(tags: List[Tag], cloud: Map[Tag, Int])
   case class ReExtractContent(account: Ident, entryId: Option[String]) extends StoreMessage
@@ -108,9 +108,9 @@ package object sitebag {
 
   //global events
   trait SitebagEvent extends Serializable
-  case class EntrySaved(account: Ident, entry: PageEntry) extends SitebagEvent
+  case class EntrySaved(account: Ident, entry: FullPageEntry) extends SitebagEvent
   case class EntryDropped(account: Ident, entryId: String) extends SitebagEvent
-  case class EntryTagged(account: Ident, entryId: String, tags: Set[Tag]) extends SitebagEvent
+  case class EntryTagged(account: Ident, entryId: String, tags: Set[Tag], added: Boolean) extends SitebagEvent
   case class EntryUntagged(account: Ident, entryId: String, tags: Set[Tag]) extends SitebagEvent
-
+  case class EntryArchivedChange(account: Ident, entryId: String, archived: Boolean) extends SitebagEvent
 }

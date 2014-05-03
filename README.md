@@ -198,9 +198,10 @@ Toggles the archived flag on a page entry.
 
     POST /<account>/entry/<id>/[toggle|set]archived[?flag=true|false]
     POST /<account>/entry/<id>[toggle|set]archived JSON{ id: "", flag: }
-    -> { read: true|false }
+    -> { value: true|false }
 
-Instead of `toggle` you can use `set` and specify the flag.
+Instead of `toggle` you can use `set` and specify the flag. The response
+contains the new archived value.
 
 
 #### retrieve a site entry

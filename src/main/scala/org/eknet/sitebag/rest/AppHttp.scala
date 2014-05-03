@@ -100,7 +100,7 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
       post {
         checkAccess(subject, settings.porter, checkUpdateEntry(id)) { rctx =>
           complete {
-            (appRef ? ToggleArchived(rctx.subject, id)).mapTo[Ack]
+            (appRef ? ToggleArchived(rctx.subject, id)).mapTo[Result[Boolean]]
           }
         }
       }
@@ -109,7 +109,7 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
       post {
         checkAccess(subject, settings.porter, checkUpdateEntry(id)) { rctx =>
           handle { flag: Flag =>
-            (appRef ? SetArchived(rctx.subject, id, flag.flag)).mapTo[Ack]
+            (appRef ? SetArchived(rctx.subject, id, flag.flag)).mapTo[Result[Boolean]]
           }
         }
       }

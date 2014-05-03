@@ -52,10 +52,11 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
       meta <- entries(account).find(Id(entryId), PageEntryMetadata.filter).one[PageEntryMetadata]
       result <- meta.map { pe =>
         if (pe.updated <= ts) {
-          entries(account).update(Id(entryId), BD("$set" -> BD("archived" -> f(pe)))).makeResult("Archived status changed.")
+          val flag = f(pe)
+          entries(account).update(Id(entryId), BD("$set" -> BD("archived" -> flag))).makeResult(flag, "Archived status changed.")
         } else {
           //ignore outdated update
-          Future.successful(Success("Archived status unchanged."))
+          Future.successful(Success(None, "Archived status unchanged."))
         }
       }.getOrElse(Future.successful(Success(None)))
     } yield result
@@ -473,6 +474,7 @@ object SitebagMongo {
   }
   implicit class ResultConvertError(f: Future[LastError])(implicit ec: ExecutionContext) {
     def makeResult(successMsg: String): Future[Ack] = f.map(errorToResult(successMsg))
+    def makeResult[T](value: T, msg: String): Future[Result[T]] = f.map(e => errorToResult(msg)(e).map(_ => Some(value)))
   }
   implicit class ResultConvertErrorOption(f: Future[Option[LastError]])(implicit ec: ExecutionContext) {
     def makeResult(successMsg: String): Future[Ack] = f map {

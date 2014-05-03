@@ -36,15 +36,25 @@ class AppActor(clientRef: ActorRef, store: ActorRef) extends Actor with ActorLog
       f pipeTo sender
 
     case req: ToggleArchived =>
-      store forward req
+      val f = (store ? req).mapTo[Result[Boolean]]
+      f onSuccess {
+        case Success(Some(flag), _) =>
+          context.system.eventStream.publish(EntryArchivedChange(req.account, req.entryId, flag))
+      }
+      f pipeTo sender
 
     case req: SetArchived =>
-      store forward req
+      val f = (store ? req).mapTo[Result[Boolean]]
+      f onSuccess {
+        case Success(Some(flag), _) =>
+          context.system.eventStream.publish(EntryArchivedChange(req.account, req.entryId, flag))
+      }
+      f pipeTo sender
 
     case req: TagEntry =>
       val f = (store ? req).mapTo[Ack]
       f onSuccess { case r if r.isSuccess =>
-        context.system.eventStream.publish(EntryTagged(req.account, req.entryId, req.tags))
+        context.system.eventStream.publish(EntryTagged(req.account, req.entryId, req.tags, added = true))
       }
       f pipeTo sender
     case req: UntagEntry =>
@@ -60,7 +70,7 @@ class AppActor(clientRef: ActorRef, store: ActorRef) extends Actor with ActorLog
     case req@ SetTags(account, entryId, tags) =>
       val f = (store ? req).mapTo[Ack]
       f onSuccess { case r if r.isSuccess =>
-        context.system.eventStream.publish(EntryTagged(account, entryId, tags))
+        context.system.eventStream.publish(EntryTagged(account, entryId, tags, added = false))
       }
       f pipeTo sender
 
@@ -133,7 +143,7 @@ object AppActor {
             log.error(t, s"Error fetching contents from $url")
           }
         }
-        context.system.eventStream.publish(EntrySaved(add.account, pentry.entry))
+        context.system.eventStream.publish(EntrySaved(add.account, pentry))
         client ! Success(pentry.entry.id, "Document saved successfully.")
         context.stop(self)
 
