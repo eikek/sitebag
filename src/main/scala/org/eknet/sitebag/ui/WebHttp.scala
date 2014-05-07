@@ -1,11 +1,11 @@
 package org.eknet.sitebag.ui
 
 import spray.routing.{Directives, Route}
-import org.eknet.sitebag.rest.RestDirectives
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.util.Timeout
+import org.eknet.sitebag.rest.RestDirectives
 import org.eknet.sitebag.model.UserInfo
 import org.eknet.sitebag._
-import akka.actor.{ActorRef, ActorRefFactory}
 
 class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorRefFactory, to: Timeout)
   extends Directives with RestDirectives with WebDirectives {
@@ -45,6 +45,14 @@ class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorR
         anyParam("theme") { url =>
           send("Theme changed.", "Unable to change theme.") {
             settings.porter.updateAccount(userInfo.name, a => a.updatedProps(UserInfo.themeUrl.set(url)))
+          }
+        }
+      } ~
+      path("api" / "bootswatch") {
+        compressResponse() {
+          complete{
+            import spray.client.pipelining._
+            (Get(webSettings.bootswatchApi) ~> sendReceive).map(_.entity)
           }
         }
       } ~

@@ -2,22 +2,22 @@ package org.eknet.sitebag
 
 import scala.concurrent.duration._
 import scala.concurrent.Future
+import javax.net.ssl.{KeyManager, SSLContext, X509TrustManager}
+import java.security.cert
 import akka.actor.{ActorRef, Props, Actor, ActorLogging}
 import akka.pattern.pipe
 import akka.pattern.ask
 import akka.util.Timeout
+import akka.io.IO
 import spray.http._
 import spray.client.pipelining._
-import org.eknet.sitebag.content.Content
 import spray.httpx.encoding.Gzip
-import javax.net.ssl.{KeyManager, SSLContext, X509TrustManager}
-import java.security.cert
 import spray.io.ClientSSLEngineProvider
-import akka.io.IO
-import org.eknet.sitebag.HttpClientActor.TrustAllSslConfiguration
 import spray.can.Http.HostConnectorSetup
 import spray.can.Http
 import spray.http.HttpResponse
+import org.eknet.sitebag.content.Content
+import org.eknet.sitebag.HttpClientActor.TrustAllSslConfiguration
 import org.eknet.sitebag.content.ExtractedContent
 
 object HttpClientActor {

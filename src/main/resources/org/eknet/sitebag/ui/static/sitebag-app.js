@@ -90,7 +90,7 @@ $(function() {
       data.themes.push({
         cssCdn: '//netdna.bootstrapcdn.com/bootstrap/latest/css/bootstrap.min.css',
         name: 'Boostrap Default',
-        thumbnail: 'http://getbootstrap.com/examples/screenshots/jumbotron-narrow.jpg'
+        thumbnail: settings.uiPath("/static/bootstrap-default-preview.jpg")
       });
       data.themes.forEach(function (theme, i) {
         var context = $.extend({}, theme, {

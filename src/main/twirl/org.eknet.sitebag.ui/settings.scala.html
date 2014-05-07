@@ -5,7 +5,6 @@
     applicationRevision: "@settings.applicationRevision",
     applicationVersion: "@settings.applicationVersion",
     applicationBuildTime: "@settings.applicationBuildTime",
-    bootswatchApi: "@settings.bootswatchApi",
     themeUrl: "@UserInfo.themeUrl.get(user.settings).getOrElse(UserInfo.defaultThemeUrl)",
     defaultThemeUrl: "@UserInfo.defaultThemeUrl",
     username: "@user.name",
@@ -35,4 +34,5 @@
     enableHighlightJs: "@settings.enableHighlightJs",
     highlightJsTheme: "@settings.highlightJsTheme"
   };
+  settings.bootswatchApi = settings.uiPath("/api/bootswatch");
 </script>
