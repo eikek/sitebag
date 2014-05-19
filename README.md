@@ -43,7 +43,7 @@ will create a zip file, ready to start.
 
 SiteBag needs a running MongoDB and Java 1.7.
 
-#### 2. Download sitebag zip file
+#### 2. [Download](https://eknet.org/main/projects/sitebag/download.html) sitebag zip file
 
 Unpack the zip file somewhere. You can have a look at the configuration
 file `etc/sitebag.conf`. If you have mongodb running on some other port,
