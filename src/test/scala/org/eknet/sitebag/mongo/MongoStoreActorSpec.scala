@@ -1,14 +1,10 @@
 package org.eknet.sitebag.mongo
 
 import scala.concurrent.duration._
-import akka.testkit.{ImplicitSender, TestKit}
-import akka.actor.{ActorRef, ActorSystem}
-import com.typesafe.config.ConfigFactory
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, WordSpecLike}
 import reactivemongo.bson.BSONDocument
 import org.eknet.sitebag.model._
 import spray.http.{ContentTypes, DateTime, MediaTypes, ContentType}
-import akka.util.{Timeout, ByteString}
+import akka.util.ByteString
 import scala.util.Try
 import scala.concurrent.{Future, Await}
 import org.eknet.sitebag._
@@ -16,31 +12,10 @@ import org.eknet.sitebag.content.Content
 import org.eknet.sitebag.model.FullPageEntry
 import reactivemongo.api.collections.default.BSONCollection
 
-class MongoStoreActorSpec extends TestKit(ActorSystem("MongoStoreActorSpec", ConfigFactory.load("reference")))
-  with WordSpecLike with BeforeAndAfterAll with BeforeAndAfter with ImplicitSender {
+class MongoStoreActorSpec extends ActorTestBase("MongoStoreActorSpec") with MongoTest {
 
   import system.dispatcher
   import akka.pattern.ask
-
-  val settings = SitebagSettings(system)
-  implicit val timeout: Timeout = 5.seconds
-
-  var usedDbs: List[String] = Nil
-  var dbname = ""
-  var mongo: SitebagMongo = _
-  var storeRef: ActorRef = _
-
-  before {
-    dbname = "mongotest" + System.currentTimeMillis()
-    usedDbs = dbname :: usedDbs
-    mongo = settings.makeMongoClient(dbname)
-    storeRef = system.actorOf(MongoStoreActor(dbname))
-  }
-
-  override def afterAll() = {
-    usedDbs foreach { name => Await.ready(settings.makeMongoClient(name).db.drop(), 10.seconds) }
-    system.shutdown()
-  }
 
   "A StoreActor" must {
     "add and retrieve entries" in {

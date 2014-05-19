@@ -21,6 +21,7 @@ object Content {
     Some(c.uri, c.contentType, c.data)
 
   def apply(uri: Uri, r: HttpResponse): Content = HttpContent(uri, r.entity)
+  def apply(uri: Uri, entity: HttpEntity): Content = HttpContent(uri, entity)
 
   def apply(uri: Uri, data: ByteString, contentType: Option[ContentType] = None): Content = {
     import org.eknet.sitebag.utils._
@@ -41,4 +42,4 @@ object Content {
   }
 }
 
-case class ExtractedContent(original: Content, title: String, text: String, shortText: String, binaryUrls: Set[Uri])
+case class ExtractedContent(original: Content, title: String, text: String, shortText: String, language: Option[String], binaryUrls: Set[Uri])

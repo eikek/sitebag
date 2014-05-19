@@ -20,6 +20,7 @@ There is a basic web ui provided, too.
   mongo database and
 * [porter](https://github.com/eikek/porter) provides authentication
   and user management
+* full text searching is done by [lucene](http://lucene.apache.org/)
 
 The ui templates are processed by [twirl](https://github.com/spray/twirl)
 and [bootstrap](http://getbootstrap.com) is used to provide a responsive
@@ -122,7 +123,6 @@ In short, here are the relevant url endpoints:
     /api/<account>/entries/rss ?tag=&tag=&tags=a,b,c&archived | q= (lucene)
     /api/<account>/entries/json   -"-
     /api/<account>/bin/<id> (GET) binary files
-    /api/<account>/stats (GET) db stats
 
 More details to each one can be found below.
 

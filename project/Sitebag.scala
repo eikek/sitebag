@@ -63,6 +63,12 @@ object Deps {
   val config = Seq(
     "com.typesafe" % "config" %"1.2.0"
   )
+
+  val lucene = Seq(
+    "org.apache.lucene" % "lucene-core" % "4.8.0",
+    "org.apache.lucene" % "lucene-analyzers-common" % "4.8.0",
+    "org.apache.lucene" % "lucene-queryparser" % "4.8.0"
+  )
 }
 
 object Sitebag extends sbt.Build {
@@ -80,7 +86,7 @@ object Sitebag extends sbt.Build {
       Twirl.twirlImports := Seq("org.eknet.sitebag.ui._", "org.eknet.sitebag.rest.EntrySearch", "org.eknet.sitebag.model._"),
       libraryDependencies ++= Deps.spray ++ Deps.sprayJson ++
         Deps.akka ++ Deps.porter ++ Deps.reactiveMongo ++ Deps.jsoup ++
-        Deps.config ++ Deps.logback ++ Deps.testBasics
+        Deps.config ++ Deps.lucene ++ Deps.logback ++ Deps.testBasics
     )
   )
 

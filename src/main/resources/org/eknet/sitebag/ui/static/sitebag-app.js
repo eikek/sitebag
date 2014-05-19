@@ -141,6 +141,9 @@ $(function() {
       if (n === "tag") {
         form.find('input[value="'+v+'"]').prop("checked", true);
       }
+      if (n === "q") {
+        form.find('input[name="q"]').val(v);
+      }
     });
     return this;
   };
@@ -152,6 +155,18 @@ function createEntrySearchForm(callback) {
     cnt.find('.sb-search-form').bind('change', function(f) {
       location.hash = '#' + $(this).serialize();
       loadEntries();
+    });
+    cnt.find('#sb-search-button').click(function(ev) {
+      cnt.find('.sb-search-form').change();
+      ev.preventDefault();
+      return false;
+    });
+    cnt.find("input").keypress(function(ev) {
+      if (ev.keyCode === 13) { // hits enter;
+        $(this).parents("form").change();
+        ev.preventDefault();
+        return false;
+      }
     });
   }
 

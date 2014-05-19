@@ -44,10 +44,10 @@ class WallabagHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: 
   def mapWallabagType(name: Option[String]) = {
     val page = Some(Page(1, Some(25)))
     name.map(_.toLowerCase) match {
-      case Some("fav") => EntrySearch(TagInput(Set(Tag.favourite)), Some(false), page, true)
-      case Some("home") => EntrySearch(TagInput(Set.empty), Some(false), page, true)
-      case Some("archive") => EntrySearch(TagInput(Set.empty), Some(true), page, true)
-      case _ => EntrySearch(TagInput(Set.empty), Some(false), page, true)
+      case Some("fav") => EntrySearch(TagInput(Set(Tag.favourite)), Some(false), "", page, true)
+      case Some("home") => EntrySearch(TagInput(Set.empty), Some(false), "", page, true)
+      case Some("archive") => EntrySearch(TagInput(Set.empty), Some(true), "", page, true)
+      case _ => EntrySearch(TagInput(Set.empty), Some(false), "", page, true)
     }
   }
   def wbRssEntries(uri: Uri, appRef: ActorRef, sq: EntrySearch, rctx: RestContext): Route = {

@@ -55,7 +55,7 @@ class MongoStoreActor(dbname: Option[String]) extends Actor with ActorLogging {
     case GetBinaryByUrl(url) =>
       mongo.findBinaryByUrl(url) pipeTo sender
 
-    case ListEntries(account, tagnames, read, page, complete) =>
+    case ListEntries(account, tagnames, read, query, page, complete) =>
       mongo.listEntries(account, tagnames, read, page, complete) pipeTo sender
 
     case GetTags(account, entryId) =>

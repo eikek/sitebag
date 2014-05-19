@@ -11,6 +11,7 @@ import spray.testkit.Specs2RouteTest
 import porter.model.Ident
 import org.eknet.sitebag._
 import org.eknet.sitebag.model.{Tag, PageEntry}
+import org.eknet.sitebag.search.SearchActor
 
 class AppHttpSpec extends Specification with Specs2RouteTest with HttpService with FormDataSerialize {
   def actorRefFactory = system
@@ -24,7 +25,8 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
   private val settings = SitebagSettings(system)
   private val storeActor = system.actorOf(DummyStoreActor())
   private val clientActor = createClient(extrRef, HttpResponse(entity = HttpEntity(htmlType, "<html>Hello world</html>")))
-  private val appRef = system.actorOf(AppActor(clientActor, storeActor))
+  private val search = system.actorOf(SearchActor())
+  private val appRef = system.actorOf(AppActor(clientActor, storeActor, search))
   private def route(subject: String) =
     new AppHttp(settings, appRef, system, system.dispatcher, timeout).route(subject)
 

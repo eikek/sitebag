@@ -9,13 +9,15 @@ import spray.http.Uri
 import org.eknet.sitebag.utils._
 
 object HtmlParser {
+  import Html._
 
   def parseString(html: String, baseUri: Uri = Uri.Empty): (Document, HtmlMeta) = {
     val htmlDoc = Jsoup.parse(html, baseUri.toString())
     val title = htmlDoc.title()
     val doc = clean(htmlDoc)
-    Html.rewriteUrls(doc, Html.rebaseUri(baseUri))
-    (doc, HtmlMeta(findCharset(htmlDoc), title))
+    val lang = htmlDoc.select("[lang]").attrs("lang").headOption
+    doc.rewriteUrls(rebaseUri(baseUri))
+    (doc, HtmlMeta(findCharset(htmlDoc), lang, title))
   }
 
   def parseContent(content: Content, baseUri: Uri = Uri.Empty): (Document, HtmlMeta) = {
@@ -48,7 +50,7 @@ object HtmlParser {
     val contentEls = "p" :: "h1" :: "h2" :: "h3" :: "h4" :: "img" :: Nil
     val containerEls = "div" :: "span" :: Nil
 
-    val cleaner = new Cleaner(Whitelist.relaxed())
+    val cleaner = new Cleaner(Whitelist.relaxed().addAttributes(":all", "lang", "xml:lang"))
     val doc = cleaner.clean(htmlDoc)
 
     doc.select("script").remove()

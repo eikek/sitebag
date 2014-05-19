@@ -6,7 +6,8 @@ import org.jsoup.select.{NodeVisitor, NodeTraversor, Elements}
 import org.jsoup.nodes.{TextNode, Node, Element, Document}
 import org.eknet.sitebag.utils._
 
-object HtmlExtractor extends Extractor{
+object HtmlExtractor extends Extractor {
+  import Html._
 
   val htmlType = MediaTypes.`text/html`
   val magicValue = 8.5
@@ -15,13 +16,15 @@ object HtmlExtractor extends Extractor{
     case c@Content(uri, Some(ContentType(`htmlType`, cset)), data) =>
       val (doc, meta) = HtmlParser.parseContent(c, uri)
       val (main, title) = extract(doc)
-      val bins = Html.findBinaries(uri, new Elements(main)).map { u =>
+      val lang = main.selectParents("[lang]").attrs("lang").headOption
+      val bins = main.findBinaries(uri).map { u =>
         if (u.authority.isEmpty) u.resolvedAgainst(uri) else u
       }
       ExtractedContent(c,
         removeWeirdChars(title.toOption.orElse(meta.title.toOption).getOrElse("No title").takeDots(120)),
         removeWeirdChars(main.html()),
         removeWeirdChars(main.last().text().takeDots(180)),
+        lang.orElse(meta.language),
         bins)
   }
 
@@ -37,50 +40,6 @@ object HtmlExtractor extends Extractor{
 
   def isDefinedAt(p: Content) = pf.isDefinedAt(p)
   def apply(p: Content) = pf(p)
-
-  implicit class ElementHelper(el: Element) {
-
-    def parentOpt = Option(el.parent())
-    def previous = Option(el.previousElementSibling())
-
-    def asElements = new Elements(el)
-
-    def findFirst(tagname: String, rest: String*) = {
-      @scala.annotation.tailrec
-      def loop(names: List[String]): Option[Element] = names match {
-        case Nil   => None
-        case a::as => el.getElementsByTag(a).single match {
-          case r@Some(_) => r
-          case _         => loop(as)
-        }
-      }
-      loop((tagname +: rest).toList)
-    }
-
-    final def previousDeep: Option[Element] = previous orElse parentOpt.flatMap(_.previousDeep)
-
-    final def findPathToTags(firstTag: String, rest: String*): Option[(Elements, String)] = {
-      @scala.annotation.tailrec
-      def loop(cursor: Element, coll: List[Element]): Option[(List[Element], String)] = {
-        val headline = cursor.findFirst(firstTag, rest: _*)
-        headline match {
-          case Some(h) => Some((h :: cursor :: coll, h.select("h1,h2").text().trim))
-          case _       =>
-            val prev = cursor.previousDeep
-            prev match {
-              case Some(p) => loop(p, cursor :: coll)
-              case _       => None
-            }
-        }
-      }
-
-      loop(el, Nil).map({case (els, title) => new Elements(els.asJavaCollection) -> title })
-    }
-  }
-
-  implicit class ElementsHelper(els: Elements) {
-    def single: Option[Element] = if (els.size() == 1) Some(els.get(0)) else None
-  }
 
   def extract(doc: Document): (Elements, String) = {
     val main = findMainContentElement(doc)

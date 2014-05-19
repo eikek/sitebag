@@ -4,7 +4,7 @@ import java.io.ByteArrayOutputStream
 import scala.concurrent.{Promise, ExecutionContext, Future}
 import scala.util.control.NonFatal
 import akka.util.ByteString
-import play.api.libs.iteratee.Iteratee
+import play.api.libs.iteratee.{Enumerator, Enumeratee, Iteratee}
 import spray.http.{ContentType, Uri, DateTime}
 import reactivemongo.core.commands.LastError
 import reactivemongo.api._
@@ -19,17 +19,17 @@ import org.eknet.sitebag.model._
 import org.eknet.sitebag.content.Content
 import org.eknet.sitebag.utils._
 
-class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec: ExecutionContext) {
+class SitebagMongo(driver: MongoDriver, url: String, dbName: String) {
 
   val mongoUri = MongoConnection.parseURI(url).get
 
   val connection = driver.connection(mongoUri)
-  val db = connection(dbName)
-  val gridFs = new GridFS(db)
-  def files: BSONCollection = gridFs.files
+  def db(implicit ec: ExecutionContext) = connection(dbName)
+  def gridFs(implicit ec: ExecutionContext) = new GridFS(db)
+  def files(implicit ec: ExecutionContext): BSONCollection = gridFs.files
 
-  def entries(account: Ident): BSONCollection = db(s"${account.name}_entries")
-  def tags(account: Ident): BSONCollection = db(s"${account.name}_tags")
+  def entries(account: Ident)(implicit ec: ExecutionContext): BSONCollection = db.apply(s"${account.name}_entries")
+  def tags(account: Ident)(implicit ec: ExecutionContext): BSONCollection = db.apply(s"${account.name}_tags")
 
   type BD = BSONDocument
   val BD = BSONDocument
@@ -44,10 +44,18 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     case e => new Exception("Error completing mongo-db future.", e).printStackTrace()
   }
 
+  def withDbName(dbname: String) = new SitebagMongo(driver, url, dbname)
+
+  def close() {
+    driver.connections.foreach { connection =>
+      connection.monitor ! reactivemongo.core.actors.Close
+    }
+    driver.close()
+  }
   // ~~~~~~
   import SitebagMongo._
 
-  private def updateArchivedFlag(account: Ident, entryId: String, ts: DateTime)(f: PageEntryMetadata => Boolean) = {
+  private def updateArchivedFlag(account: Ident, entryId: String, ts: DateTime)(f: PageEntryMetadata => Boolean)(implicit ec: ExecutionContext) = {
     for {
       meta <- entries(account).find(Id(entryId), PageEntryMetadata.filter).one[PageEntryMetadata]
       result <- meta.map { pe =>
@@ -62,19 +70,19 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     } yield result
   }
 
-  def setArchivedFlag(account: Ident, entryId: String, ts: DateTime, flag: Boolean) = {
+  def setArchivedFlag(account: Ident, entryId: String, ts: DateTime, flag: Boolean)(implicit ec: ExecutionContext) = {
     updateArchivedFlag(account, entryId, ts)(_ => flag)
   }
 
-  def toggleArchivedFlag(account: Ident, entryId: String, ts: DateTime) = {
+  def toggleArchivedFlag(account: Ident, entryId: String, ts: DateTime)(implicit ec: ExecutionContext) = {
     updateArchivedFlag(account, entryId, ts)(pe => !pe.archived)
   }
 
-  def countBinaries(): Future[Int] = {
+  def countBinaries()(implicit ec: ExecutionContext): Future[Int] = {
     files.find(BD()).cursor[BD].enumerate().run(Iteratee.fold(0) { (i, _) => i+1})
   }
 
-  def addBinary(bin: Binary): Future[ReadFile[BSONValue]] = {
+  def addBinary(bin: Binary)(implicit ec: ExecutionContext): Future[ReadFile[BSONValue]] = {
     val exists: Future[Option[ReadFile[BSONValue]]] = gridFs.find(Id(bin.id)).headOption
     exists.flatMap {
       case Some(b) =>
@@ -99,7 +107,7 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     }
   }
 
-  def getBinary[S](selector: S)(implicit sWriter: BSONDocumentWriter[S]): Future[Option[Binary]] = {
+  def getBinary[S](selector: S)(implicit sWriter: BSONDocumentWriter[S], ec: ExecutionContext): Future[Option[Binary]] = {
     def readData(f: ReadFile[BSONValue]): Future[ByteString] = {
       val buffer = new ByteArrayOutputStream()
       gridFs.readToOutputStream(f, buffer).map(_ => ByteString(buffer.toByteArray))
@@ -117,7 +125,7 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     } yield bin
   }
 
-  def addEntryBinary(account: Ident, entryId: String, bin: Binary) = {
+  def addEntryBinary(account: Ident, entryId: String, bin: Binary)(implicit ec: ExecutionContext) = {
     (for {
       file   <- addBinary(bin)
       result <- {
@@ -128,7 +136,7 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     } yield result).makeResult("Binary saved.")
   }
 
-  def getEntryBinary(account: Ident, entryId: String): Future[Option[Binary]] = {
+  def getEntryBinary(account: Ident, entryId: String)(implicit ec: ExecutionContext): Future[Option[Binary]] = {
     for {
       entry <- entries(account).find(Id(entryId)).one[PageEntryMetadata]
       cid   <- entry.flatMap(_.contentId).map(id => getBinary(Id(id)))
@@ -136,13 +144,13 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     } yield cid
   }
 
-  def getEntryContent(account: Ident, entryId: String): Future[Result[Content]] = {
+  def getEntryContent(account: Ident, entryId: String)(implicit ec: ExecutionContext): Future[Result[Content]] = {
     getEntryBinary(account, entryId).map(optb => optb.map(b =>
       Success(Content(b.url,b.data, Some(b.contentType)))).getOrElse(Success(None, s"Entry '$entryId' not found."))
     )
   }
 
-  def getEntry(account: Ident, entryId: String): Future[Result[PageEntry]] = {
+  def getEntry(account: Ident, entryId: String)(implicit ec: ExecutionContext): Future[Result[PageEntry]] = {
     val page = entries(account).find(Id(entryId)).one[PageEntry]
     val tag  = getTags(account, Set(entryId))
     for {
@@ -151,7 +159,7 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     } yield Success(p.map(e => e.copy(tags = t.get(entryId).getOrElse(Set.empty))))
   }
 
-  def getEntryMeta(account: Ident, entryId: String): Future[Result[PageEntryMeta]] = {
+  def getEntryMeta(account: Ident, entryId: String)(implicit ec: ExecutionContext): Future[Result[PageEntryMeta]] = {
     val page = entries(account).find(Id(entryId)).one[PageEntryMetadata]
     val tag  = getTags(account, Set(entryId))
     for {
@@ -160,7 +168,7 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     } yield Success(p.map(md => PageEntryMeta(md.uri, md.archived, md.created, t.get(entryId).getOrElse(Set.empty))))
   }
 
-  def addEntry(account: Ident, entry: FullPageEntry): Future[Ack] = {
+  def addEntry(account: Ident, entry: FullPageEntry)(implicit ec: ExecutionContext): Future[Ack] = {
     val addcontentId: PartialFunction[Ack, Unit] = {
       case Success(_, _) =>
         val org = Binary(entry.page)
@@ -176,7 +184,7 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     f
   }
 
-  def cleanUnusedBinaries: Future[LastError] = {
+  def cleanUnusedBinaries(implicit ec: ExecutionContext): Future[LastError] = {
     val delete = Iteratee.fold1[BD, LastError](Future.successful(successLastError)) { (prev, doc) =>
       doc.getAs[String]("_id") match {
         case Some(i) => gridFs.remove(BSONString(i))
@@ -189,13 +197,24 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
       .enumerate().run(delete)
   }
 
-  def withPageEntries(account: Ident)(cons: PageEntryMetadata => Unit) = {
+  private def allEntries[T](account: Ident)(implicit rt: BSONDocumentReader[T], ec: ExecutionContext): Enumerator[T] = {
     entries(account).find(BD("_id" -> BD("$exists" -> true)))
-      .cursor[PageEntryMetadata]
-      .enumerate().run(Iteratee.fold(0){ (c, x) => cons(x); c+1 })
+      .cursor[T]
+      .enumerate()
+  }
+  def withPageMetaEntries(account: Ident)(cons: PageEntryMetadata => Unit)(implicit ec: ExecutionContext) = {
+    allEntries[PageEntryMetadata](account) |>>> Iteratee.fold(0){ (c, x) => cons(x); c+1 }
   }
 
-  def deleteEntry(account: Ident, entryId: String): Future[Ack] = {
+  def withPageEntries(account: Ident)(cons: PageEntry => Unit)(implicit ec: ExecutionContext) = {
+    val withTags = Enumeratee.mapM[PageEntry] { entry =>
+      val tags = getTags(account, Set(entry.id)).map(_.get(entry.id).getOrElse(Set.empty))
+      tags.map(ts => entry.copy(tags = ts))
+    }
+    allEntries[PageEntry](account) &> withTags |>>> Iteratee.fold(0) { (c, e) => cons(e); c+1 }
+  }
+
+  def deleteEntry(account: Ident, entryId: String)(implicit ec: ExecutionContext): Future[Ack] = {
     val promise = Promise[Ack]()
     val bins = entries(account).find(Id(entryId)).one[PageEntryMetadata].map(_.map(_.binaryIds).getOrElse(Set.empty))
     bins onFailure { case ex => promise.failure(ex) }
@@ -216,23 +235,23 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     promise.future
   }
 
-  def cleanTags(account: Ident): Future[LastError] = {
+  def cleanTags(account: Ident)(implicit ec: ExecutionContext): Future[LastError] = {
     tags(account).remove(BD("entries" -> BD("$size" -> 0)))
   }
 
-  def clearEntryTags(account: Ident, entryId: String): Future[LastError] = {
+  def clearEntryTags(account: Ident, entryId: String)(implicit ec: ExecutionContext): Future[LastError] = {
     tags(account).update(BD("entries" -> entryId), BD("$pull" -> BD("entries" -> entryId)), multi = true).flatMap { error =>
       cleanTags(account)
     }
   }
 
-  def setTags(account: Ident, entryId: String, tagnames: Set[Tag]) = {
+  def setTags(account: Ident, entryId: String, tagnames: Set[Tag])(implicit ec: ExecutionContext) = {
     clearEntryTags(account, entryId).flatMap { _ =>
       tagEntries(account, entryId, tagnames)
     }
   }
 
-  def tagEntries(account: Ident, entryId: String, tagnames: Set[Tag]): Future[Ack] = {
+  def tagEntries(account: Ident, entryId: String, tagnames: Set[Tag])(implicit ec: ExecutionContext): Future[Ack] = {
     Future.sequence(for (tn <- tagnames) yield {
       tags(account).update(Id(tn.name),
         BD("$addToSet" -> BD("entries" -> entryId)),
@@ -241,7 +260,7 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     }).makeResult("Page tagged.")
   }
 
-  def untagEntries(account: Ident, entryId: String, tagnames: Set[Tag]): Future[Ack] = {
+  def untagEntries(account: Ident, entryId: String, tagnames: Set[Tag])(implicit ec: ExecutionContext): Future[Ack] = {
     val f = tags(account).update(
       BD("_id" -> BD("$in" -> tagnames.map(_.name).toList)),
       BD("$pull" -> BD("entries" -> entryId)),
@@ -250,7 +269,7 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     f.flatMap(_ => cleanTags(account)).makeResult("Page untagged.")
   }
 
-  def listTags(account: Ident, regex: String): Future[Result[TagList]] = {
+  def listTags(account: Ident, regex: String)(implicit ec: ExecutionContext): Future[Result[TagList]] = {
     val ts = tags(account).find(BD("_id" -> BD("$exists" -> true))).sort(BD("_id" -> 1)).cursor[TagRecord].collect[List]()
     ts map { set =>
       val list = set.distinct.withFilter(_.name matches regex)
@@ -260,14 +279,14 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     }
   }
 
-  def getEntryTags(account: Ident, entryId: String): Future[Result[List[Tag]]] = {
+  def getEntryTags(account: Ident, entryId: String)(implicit ec: ExecutionContext): Future[Result[List[Tag]]] = {
     val f = getTags(account, Set(entryId)).map(_.get(entryId).getOrElse(Set.empty).toList)
     f.map(l => Success(l)).recover({
       case NonFatal(e) => Failure(e)
     })
   }
 
-  def getTags(account: Ident, entryIds: Set[String]): Future[Map[String, Set[Tag]]] = {
+  def getTags(account: Ident, entryIds: Set[String])(implicit ec: ExecutionContext): Future[Map[String, Set[Tag]]] = {
     tags(account).find(BD("_id" -> BD("$exists" -> true))).cursor[TagRecord].collect[Set]().map { trs =>
       val ts = for {
         tr <- trs
@@ -281,7 +300,7 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
   }
 
 
-  def listEntries(account: Ident, tagnames: Set[Tag], archived: Option[Boolean], page: Page, complete: Boolean): Future[Result[List[PageEntry]]] = {
+  def listEntries(account: Ident, tagnames: Set[Tag], archived: Option[Boolean], page: Page, complete: Boolean)(implicit ec: ExecutionContext): Future[Result[List[PageEntry]]] = {
     val selector = tags(account).find(BD("_id" -> BD("$in" -> tagnames.map(_.name))))
       .cursor[TagRecord]
       .collect[Set]()
@@ -328,22 +347,29 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String)(implicit ec
     }
   }
 
-  def findBinaryById(id: String): Future[Result[Binary]] = {
+  def findBinaryById(id: String)(implicit ec: ExecutionContext): Future[Result[Binary]] = {
     getBinary(Id(id)).map(b => Success(b)).recover({
       case NonFatal(e) => Failure(e)
     })
   }
 
-  def findBinaryByUrl(url: String): Future[Result[Binary]] = {
+  def findBinaryByUrl(url: String)(implicit ec: ExecutionContext): Future[Result[Binary]] = {
     getBinary(BD("urls" -> url)).map(b => Success(b)).recover({
       case NonFatal(e) => Failure(e)
     })
   }
 
-  def updateEntryContent(account: Ident, entryId: String, title: String, content: String, shortText: String): Future[Ack] = {
+  def updateEntryContent(account: Ident, entryId: String, title: String, content: String, shortText: String)(implicit ec: ExecutionContext): Future[Ack] = {
     entries(account)
       .update(Id(entryId), BD("$set" -> BD("title" -> title, "content" -> content, "shortText" -> shortText)))
       .makeResult("Entry content updated.")
+  }
+
+  def listAccounts(implicit ec: ExecutionContext): Future[AccountList] = {
+    db.collectionNames.map { list =>
+      AccountList(list.withFilter(name => name endsWith "_entries")
+        .map(n => Ident(n.dropRight(8))))
+    }
   }
 }
 object SitebagMongo {

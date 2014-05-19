@@ -8,7 +8,7 @@ import akka.util.Timeout
 import org.eknet.sitebag.AppActor.FetchPageWorker
 import org.eknet.sitebag.model.{PageEntry, FullPageEntry, Binary}
 
-class AppActor(clientRef: ActorRef, store: ActorRef) extends Actor with ActorLogging {
+class AppActor(clientRef: ActorRef, store: ActorRef, search: ActorRef) extends Actor with ActorLogging {
   import akka.pattern.ask
   import akka.pattern.pipe
   import context.dispatcher
@@ -57,6 +57,7 @@ class AppActor(clientRef: ActorRef, store: ActorRef) extends Actor with ActorLog
         context.system.eventStream.publish(EntryTagged(req.account, req.entryId, req.tags, added = true))
       }
       f pipeTo sender
+
     case req: UntagEntry =>
       val f = (store ? req).mapTo[Ack]
       f onSuccess { case r if r.isSuccess =>
@@ -78,7 +79,11 @@ class AppActor(clientRef: ActorRef, store: ActorRef) extends Actor with ActorLog
       store forward req
 
     case req: ListEntries =>
-      store forward req
+      if (req.query.isEmpty) {
+        store forward req
+      } else {
+        search forward req
+      }
 
     case req: GetBinaryById =>
       store forward req
@@ -89,7 +94,7 @@ class AppActor(clientRef: ActorRef, store: ActorRef) extends Actor with ActorLog
 }
 
 object AppActor {
-  def apply(clientRef: ActorRef, storeRef: ActorRef) = Props(classOf[AppActor], clientRef, storeRef)
+  def apply(clientRef: ActorRef, storeRef: ActorRef, searchRef: ActorRef) = Props(classOf[AppActor], clientRef, storeRef, searchRef)
 
 
   class FetchPageWorker(clientRef: ActorRef, store: ActorRef) extends Actor with ActorLogging {

@@ -42,14 +42,14 @@ package object rest {
     val all = TagFilter(".*")
     def fromFields(fields: Fields) = fields.toMap.get("filter").map(TagFilter.apply).getOrElse(all)
   }
-  case class EntrySearch(tag: TagInput, archived: Option[Boolean], page: Option[Page], complete: Boolean) {
+  case class EntrySearch(tag: TagInput, archived: Option[Boolean], query: String, page: Option[Page], complete: Boolean) {
     def toListEntries(subject: Ident): ListEntries =
-      ListEntries(subject, tag.tags, archived, page.getOrElse(Page(1, None)), complete)
+      ListEntries(subject, tag.tags, archived, query, page.getOrElse(Page(1, None)), complete)
     def withTags(tag: Tag, tags: Tag*) = copy(tag = TagInput((tag +: tags).toSet))
   }
   object EntrySearch extends FieldsDeserialize[EntrySearch]  {
-    val allNew = EntrySearch(TagInput.empty, Some(false), None, true)
-    val empty = EntrySearch(TagInput(Set.empty), None, None, false)
+    val allNew = EntrySearch(TagInput.empty, Some(false), "", None, true)
+    val empty = EntrySearch(TagInput(Set.empty), None, "", None, false)
     def fromFields(fields: Fields): EntrySearch = {
       val tagin = TagInput.fromFields(fields)
       val fmap = fields.toMap
@@ -61,8 +61,9 @@ package object rest {
       val pnum = Try(fmap("num").toInt).toOption
       val psize = Try(fmap("size").toInt).toOption
       val page = pnum.map(Page(_, psize))
+      val query = fmap.get("q").getOrElse("")
       val complete = fmap.get("complete").map(_.toBoolean).getOrElse(false)
-      EntrySearch(tagin, archived, page, complete)
+      EntrySearch(tagin, archived, query, page, complete)
     }
   }
 

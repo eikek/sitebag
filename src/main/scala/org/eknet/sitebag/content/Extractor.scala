@@ -48,7 +48,7 @@ object TextplainExtractor extends Extractor {
   val pf: PartialFunction[Content, ExtractedContent] = {
     case c@Content(_, Some(ContentType(`textPlain`, cset)), data) =>
       val extracted = data.decodeString(cset.map(_.value).getOrElse("UTF-8"))
-      ExtractedContent(c, "No title", extracted, extracted.takeDots(180), Set.empty)
+      ExtractedContent(c, "No title", extracted, extracted.takeDots(180), None, Set.empty)
   }
 
   def isDefinedAt(p: Content) = pf.isDefinedAt(p)

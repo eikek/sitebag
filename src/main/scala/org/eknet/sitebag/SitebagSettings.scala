@@ -17,6 +17,8 @@ import org.eknet.sitebag.mongo.SitebagMongo
 import reactivemongo.api.MongoDriver
 import akka.event.Logging
 import scala.concurrent.ExecutionContext
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 
 class SitebagSettings(system: ExtendedActorSystem) extends Extension {
   private val config = system.settings.config.getConfig("sitebag")
@@ -94,6 +96,9 @@ class SitebagSettings(system: ExtendedActorSystem) extends Extension {
   val webuiEnabled = config.getBoolean("enable-web-ui")
   val logRequests = config.getBoolean("log-requests")
   val trustAllSsl = config.getBoolean("trust-all-ssl")
+
+  val indexDir = java.nio.file.Paths.get(config.getString("lucene.index-dir") + lucene.luceneVersion.name().takeRight(2))
+  val indexReceiveTimeout = FiniteDuration(config.getDuration("lucene.index-receive-timeout", TimeUnit.SECONDS), TimeUnit.SECONDS)
 
   def logger(c: Class[_]) = Logging(system, c)
 

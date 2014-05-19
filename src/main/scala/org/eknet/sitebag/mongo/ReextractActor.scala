@@ -41,6 +41,7 @@ class ReextractActor(extrRef: ActorRef, dbname: Option[String]) extends Actor wi
         val account = worker2Account(ref)
         worker2Account -= ref
         account2Worker -= account
+        context.system.eventStream.publish(ReextractionDone(account))
       }
   }
 }
@@ -64,7 +65,7 @@ class ReextractAllWorker(worker: ActorRef, account: Ident, mongo: SitebagMongo) 
       val client = sender
       context.become(working(client))
       log.info(s"Starting re-extraction job for ${account.name}.")
-      val f = mongo.withPageEntries(account) { entry =>
+      val f = mongo.withPageMetaEntries(account) { entry =>
         worker ! ExtractJob(account, entry.id)
       }
       f.onComplete {
@@ -128,7 +129,11 @@ class ReextractEntryWorker(extrRef: ActorRef, mongo: SitebagMongo) extends Actor
   def updateExtractedContent(account: Ident, entryId: String, result: ExtractResult): Future[Ack] = {
     result match {
       case Success(Some(extr), _) =>
-        mongo.updateEntryContent(account, entryId, extr.title, extr.text, extr.shortText)
+        val f = mongo.updateEntryContent(account, entryId, extr.title, extr.text, extr.shortText)
+        f onSuccess { case _ =>
+          context.system.eventStream.publish(EntryContentsChange(account, entryId))
+        }
+        f
 
       //todo get rid of this repetition success(none) , failure
       case s@Success(None, msg) =>

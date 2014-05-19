@@ -10,6 +10,7 @@ import org.eknet.sitebag.ui.WebHttp
 import akka.event.Logging
 import akka.routing.RoundRobinRouter
 import org.eknet.sitebag.mongo.{ReextractActor, MongoStoreActor}
+import org.eknet.sitebag.search.SearchActor
 
 class SitebagService extends HttpServiceActor with Actor with ActorLogging with RestDirectives {
   implicit val timeout: Timeout = 10.seconds
@@ -23,7 +24,8 @@ class SitebagService extends HttpServiceActor with Actor with ActorLogging with 
   val reextractor = context.actorOf(ReextractActor(extractor), "re-extractor")
   val store = context.actorOf(MongoStoreActor(settings.dbName), "mongo-store")
   val httpclient = context.actorOf(HttpClientActor(extractor), "http-client")
-  val app = context.actorOf(AppActor(httpclient, store), "app")
+  val search = context.actorOf(SearchActor(), "search")
+  val app = context.actorOf(AppActor(httpclient, store, search), "app")
 
   val admin = context.actorOf(AdminActor(reextractor), "admin")
   val adminHttp = new AdminHttp(settings, admin, executionContext, timeout)

@@ -21,7 +21,7 @@ class HttpClientActorSpec extends TestKit(ActorSystem("HttpClientActorSpec", Con
       val ref = createHtmlClient(extrRef, "test.html")
       ref ! ExtractRequest("http://dummy")
       expectMsgPF() {
-        case Success(Some(ExtractedContent(org, title, text, short, bins)), _) =>
+        case Success(Some(ExtractedContent(org, title, text, short, _, bins)), _) =>
           assert(org.uri === Uri("http://dummy"))
           assert(title === "Robin Hood -- The Outlaw")
           assert(text.nonEmpty)
@@ -41,7 +41,7 @@ class HttpClientActorSpec extends TestKit(ActorSystem("HttpClientActorSpec", Con
       val ref = createClient(extrRef, HttpResponse(status = StatusCodes.OK, entity = "{ /%&() }"))
       ref ! ExtractRequest("http://dummy")
       expectMsgPF() {
-        case Success(Some(ExtractedContent(org, title, text, short, bins)), _) =>
+        case Success(Some(ExtractedContent(org, title, text, short, _, bins)), _) =>
           assert(org.uri === Uri("http://dummy"))
           assert(title === "No title")
           assert(text === "{ /%&() }")

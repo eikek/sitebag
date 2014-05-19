@@ -116,11 +116,11 @@ trait JsonProtocol extends ModelJsonProtocol {
     )
   }
 
-  implicit val pageFormat = jsonFormat(Page, "num", "size")
+  implicit val pageFormat = jsonFormat(Page.apply, "num", "size")
   implicit val flagFormat = jsonFormat1(Flag)
   implicit val taginputFormat = jsonFormat1(TagInput.apply)
   implicit val tagFilterFormat = jsonFormat1(TagFilter.apply)
-  implicit val entrySearchFormat = jsonFormat4(EntrySearch.apply)
+  implicit val entrySearchFormat = jsonFormat5(EntrySearch.apply)
 
   implicit val taglistFormat = jsonFormat2(TagList)
   implicit val deleteActionFormat = jsonFormat1(DeleteAction)
