@@ -9,7 +9,7 @@ import org.eknet.sitebag.rest._
 import org.eknet.sitebag.ui.WebHttp
 import akka.event.Logging
 import akka.routing.RoundRobinRouter
-import org.eknet.sitebag.mongo.{ReextractActor, MongoStoreActor}
+import org.eknet.sitebag.mongo.{SitebagMongo, ReextractActor, MongoStoreActor}
 import org.eknet.sitebag.search.SearchActor
 
 class SitebagService extends HttpServiceActor with Actor with ActorLogging with RestDirectives {
@@ -18,16 +18,17 @@ class SitebagService extends HttpServiceActor with Actor with ActorLogging with 
   implicit val s = context.system
 
   val settings = SitebagSettings(context.system)
+  val mongo = SitebagMongo(settings)
 
   private val nCpu = Runtime.getRuntime.availableProcessors()
   val extractor = context.actorOf(ExtractionActor().withRouter(RoundRobinRouter(nCpu)), "extractors")
-  val reextractor = context.actorOf(ReextractActor(extractor), "re-extractor")
-  val store = context.actorOf(MongoStoreActor(settings.dbName), "mongo-store")
+  val reextractor = context.actorOf(ReextractActor(extractor, mongo), "re-extractor")
+  val store = context.actorOf(MongoStoreActor(mongo), "mongo-store")
   val httpclient = context.actorOf(HttpClientActor(extractor), "http-client")
-  val search = context.actorOf(SearchActor(), "search")
+  val search = context.actorOf(SearchActor(mongo), "search")
   val app = context.actorOf(AppActor(httpclient, store, search), "app")
 
-  val admin = context.actorOf(AdminActor(reextractor), "admin")
+  val admin = context.actorOf(AdminActor(reextractor, settings.porter), "admin")
   val adminHttp = new AdminHttp(settings, admin, executionContext, timeout)
   val appHttp = new AppHttp(settings, app, context, executionContext, timeout)
   val webHttp = new WebHttp(settings, store, context, timeout)

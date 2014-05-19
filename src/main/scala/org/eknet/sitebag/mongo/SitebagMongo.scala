@@ -373,6 +373,8 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String) {
   }
 }
 object SitebagMongo {
+  def apply(settings: SitebagSettings) = new SitebagMongo(settings.mongoDriver, settings.mongoDbUrl, settings.dbName)
+
   import language.implicitConversions
 
   type BR[T] = BSONDocumentReader[T]

@@ -6,14 +6,13 @@ import org.eknet.sitebag._
 import porter.model.Ident
 import akka.actor.Terminated
 import scala.Some
+import org.eknet.sitebag.mongo.SitebagMongo
+import java.util.concurrent.atomic.AtomicReference
 
-class SearchActor(dbname: Option[String]) extends Actor with ActorLogging {
+class SearchActor(mongo: SitebagMongo) extends Actor with ActorLogging {
   import context.dispatcher
 
-  private val settings = SitebagSettings(context.system)
-  private val mongo = dbname.map(settings.makeMongoClient) getOrElse settings.defaultMongoClient
-
-  private var indexes = Map.empty[Ident, ActorRef]
+  private val indexes = new AtomicReference(Map.empty[Ident, ActorRef])
 
   private val rebuilder = context.actorOf(Props(new Actor {
     def receive = idle
@@ -40,15 +39,17 @@ class SearchActor(dbname: Option[String]) extends Actor with ActorLogging {
 
   def receive = {
     case Terminated(ref) =>
-      indexes = indexes filterNot { case (_, ar) => ar == ref }
+      val next = indexes.get() filterNot { case (_, ar) => ar == ref }
+      indexes.set(next)
 
     case rbi@ RebuildIndex(account, flag) =>
       account match {
         case Some(acc) =>
           accountIndex(acc) forward rbi
         case _         =>
-          mongo.listAccounts.map(al => RebuildStart(sender, al.names, flag)) pipeTo rebuilder
-          sender ! Success("Complete Index Rebuild started")
+          val client = sender
+          mongo.listAccounts.map(al => RebuildStart(client, al.names, flag)) pipeTo rebuilder
+          client ! Success("Complete Index Rebuild started")
       }
     case rs@CheckRebuildStatus(account) =>
       accountIndex(account) forward rs
@@ -63,19 +64,25 @@ class SearchActor(dbname: Option[String]) extends Actor with ActorLogging {
       accountIndex(list.account) forward list
   }
 
-  private def accountIndex(account: Ident): ActorRef = {
-    indexes.get(account) getOrElse {
+  @scala.annotation.tailrec
+  private final def accountIndex(account: Ident): ActorRef = {
+    val map = indexes.get()
+    val (ref, nextMap) = map.get(account).map(ref => ref → map) getOrElse {
       val ref = context.watch(context.actorOf(AccountSearchActor(account, mongo)))
-      indexes = indexes.updated(account, ref)
+      ref → map.updated(account, ref)
+    }
+    if ((map eq nextMap) || indexes.compareAndSet(map, nextMap)) {
       ref
+    } else {
+      accountIndex(account)
     }
   }
+
   override def preStart() = {
     context.system.eventStream.subscribe(self, classOf[SitebagEvent])
     self ! RebuildIndex(None, onlyIfEmpty = true)
   }
 }
 object SearchActor {
-  def apply(): Props = Props(classOf[SearchActor], None)
-  def apply(dbname: String): Props = Props(classOf[SearchActor], Some(dbname))
+  def apply(mongo: SitebagMongo): Props = Props(classOf[SearchActor], mongo)
 }

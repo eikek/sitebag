@@ -7,14 +7,10 @@ import akka.pattern.pipe
 import org.eknet.sitebag._
 
 object MongoStoreActor {
-  def apply(): Props = Props(classOf[MongoStoreActor], None)
-  def apply(dbname: String): Props = Props(classOf[MongoStoreActor], Some(dbname))
+  def apply(mongo: SitebagMongo): Props = Props(classOf[MongoStoreActor], mongo)
 }
-class MongoStoreActor(dbname: Option[String]) extends Actor with ActorLogging {
+class MongoStoreActor(mongo: SitebagMongo) extends Actor with ActorLogging {
   import context.dispatcher
-
-  private val settings = SitebagSettings(context.system)
-  private val mongo = dbname.map(settings.makeMongoClient) getOrElse settings.defaultMongoClient
 
   private implicit val timeout: Timeout = 5.seconds
 

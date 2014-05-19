@@ -7,8 +7,7 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, WordSpecLike}
 import org.eknet.sitebag.search.SearchActor
 
-class AppActorSpec extends TestKit(ActorSystem("AppActorSpec", ConfigFactory.load("reference")))
-  with WordSpecLike with BeforeAndAfterAll with BeforeAndAfter with ImplicitSender {
+class AppActorSpec extends ActorTestBase("AppActorSpec") with MongoTest {
 
   import commons._
   val extrRef = system.actorOf(ExtractionActor())
@@ -17,9 +16,8 @@ class AppActorSpec extends TestKit(ActorSystem("AppActorSpec", ConfigFactory.loa
     system.shutdown()
   }
 
-  val settings = SitebagSettings(system)
-  val storeRef = system.actorOf(DummyStoreActor())
-  val search = system.actorOf(SearchActor())
+  override val storeRef = system.actorOf(DummyStoreActor())
+  val search = system.actorOf(SearchActor(mongo))
 
   "The app actor" should {
     "fetch and store pages" in {

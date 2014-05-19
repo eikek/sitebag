@@ -16,6 +16,8 @@ import porter.app.client.spray.PorterDirectives
 import scala.concurrent.duration.FiniteDuration
 
 class AuthRouteSpec extends Specification with Specs2RouteTest with HttpService with FormDataSerialize with RestDirectives {
+  sequential
+
   def actorRefFactory = system
   implicit val timeout: Timeout = Timeout(3, TimeUnit.SECONDS)
   implicit val timeoutDur = timeout.duration

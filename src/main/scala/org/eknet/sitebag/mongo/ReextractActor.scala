@@ -11,13 +11,11 @@ import org.eknet.sitebag.ReExtractContent
 import akka.util.Timeout
 import scala.concurrent.Future
 
-class ReextractActor(extrRef: ActorRef, dbname: Option[String]) extends Actor with ActorLogging {
+class ReextractActor(extrRef: ActorRef, mongo: SitebagMongo) extends Actor with ActorLogging {
   private var account2Worker = Map.empty[Ident, ActorRef]
   private var worker2Account = Map.empty[ActorRef, Ident]
-  private val settings = SitebagSettings(context.system)
 
   import context.dispatcher
-  private val mongo = dbname.map(settings.makeMongoClient) getOrElse settings.defaultMongoClient
   private val worker = context.actorOf(ReextractEntryWorker(extrRef, mongo), "extract-entry")
 
   def receive = {
@@ -46,8 +44,7 @@ class ReextractActor(extrRef: ActorRef, dbname: Option[String]) extends Actor wi
   }
 }
 object ReextractActor {
-  def apply(extrRef: ActorRef): Props = Props(classOf[ReextractActor], extrRef, None)
-  def apply(extrRef: ActorRef, dbname: String): Props = Props(classOf[ReextractActor], extrRef, Some(dbname))
+  def apply(extrRef: ActorRef, mongo: SitebagMongo): Props = Props(classOf[ReextractActor], extrRef, mongo)
 }
 class ReextractAllWorker(worker: ActorRef, account: Ident, mongo: SitebagMongo) extends Actor with ActorLogging {
 

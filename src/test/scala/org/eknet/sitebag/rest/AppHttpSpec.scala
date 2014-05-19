@@ -14,6 +14,8 @@ import org.eknet.sitebag.model.{Tag, PageEntry}
 import org.eknet.sitebag.search.SearchActor
 
 class AppHttpSpec extends Specification with Specs2RouteTest with HttpService with FormDataSerialize {
+  sequential
+
   def actorRefFactory = system
   implicit val timeout = Timeout(3000, TimeUnit.MILLISECONDS)
   implicit val routeTo = RouteTestTimeout(FiniteDuration(10, TimeUnit.SECONDS))
@@ -25,8 +27,7 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
   private val settings = SitebagSettings(system)
   private val storeActor = system.actorOf(DummyStoreActor())
   private val clientActor = createClient(extrRef, HttpResponse(entity = HttpEntity(htmlType, "<html>Hello world</html>")))
-  private val search = system.actorOf(SearchActor())
-  private val appRef = system.actorOf(AppActor(clientActor, storeActor, search))
+  private val appRef = system.actorOf(AppActor(clientActor, storeActor, null))
   private def route(subject: String) =
     new AppHttp(settings, appRef, system, system.dispatcher, timeout).route(subject)
 

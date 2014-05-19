@@ -22,7 +22,7 @@ class ReextractActorSpec extends ActorTestBase("ReExtractActorTest") with MongoT
       val fentry@FullPageEntry(entry, content) = commons.newEntry
       Await.ready(mongo.addEntry("testuser" , fentry), 5.seconds)
 
-      val ref = system.actorOf(ReextractActor(extrRef, dbname))
+      val ref = system.actorOf(ReextractActor(extrRef, mongo))
       ref ! ReExtractContent("testuser", None)
       expectMsg(5.seconds, Success("Re-extraction for 'testuser' done."))
     }
@@ -31,7 +31,7 @@ class ReextractActorSpec extends ActorTestBase("ReExtractActorTest") with MongoT
       val fentry@FullPageEntry(entry, content) = commons.newEntry
       Await.ready(mongo.addEntry("testuser" , fentry), 5.seconds)
 
-      val ref = system.actorOf(ReextractActor(extrRef, dbname))
+      val ref = system.actorOf(ReextractActor(extrRef, mongo))
       ref ! ReExtractContent("testuser", None)
       ref ! ReExtractContent("testuser", None)
       expectMsg(5.seconds, Failure("A re-extraction job is already running for you."))
@@ -41,7 +41,7 @@ class ReextractActorSpec extends ActorTestBase("ReExtractActorTest") with MongoT
       val fentry@FullPageEntry(entry, content) = commons.newEntry
       Await.ready(mongo.addEntry("testuser" , fentry), 5.seconds)
 
-      val ref = system.actorOf(ReextractActor(extrRef, dbname))
+      val ref = system.actorOf(ReextractActor(extrRef, mongo))
       ref ! ReExtractContent("testuser", None)
       expectMsg(5.seconds, Success("Re-extraction for 'testuser' done."))
       def f =(ref ? ReExtractContent("testuser", None)).mapTo[Ack]

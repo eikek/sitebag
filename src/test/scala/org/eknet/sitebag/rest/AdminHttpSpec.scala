@@ -16,13 +16,15 @@ import scala.concurrent.Await
 import org.eknet.sitebag.mongo.ReextractActor
 
 class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService with FormDataSerialize {
+  sequential
+
   def actorRefFactory = system
   implicit val timeout = Timeout(3000, TimeUnit.MILLISECONDS)
   import JsonProtocol._
   import SprayJsonSupport._
 
   private val settings = SitebagSettings(system)
-  private val adminActor = system.actorOf(AdminActor(null))
+  private val adminActor = system.actorOf(AdminActor(null, settings.porter))
   implicit val routeTo = RouteTestTimeout(FiniteDuration(10, TimeUnit.SECONDS))
 
   def route(subject: String) =

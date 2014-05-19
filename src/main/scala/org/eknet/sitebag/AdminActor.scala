@@ -11,14 +11,14 @@ import org.eknet.sitebag.model._
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import org.eknet.sitebag.mongo.ReextractActor
+import porter.app.client.PorterContext
 
 object AdminActor {
-  def apply(reextrRef: ActorRef) = Props(classOf[AdminActor], reextrRef)
+  def apply(reextrRef: ActorRef, porter: PorterContext) = Props(classOf[AdminActor], reextrRef, porter)
 }
-class AdminActor(reextrRef: ActorRef) extends Actor with ActorLogging {
+class AdminActor(reextrRef: ActorRef, porter: PorterContext) extends Actor with ActorLogging {
   import context.dispatcher
 
-  private val settings = SitebagSettings(context.system)
   private implicit val timeout = Timeout(2, TimeUnit.SECONDS)
   private implicit val duration = timeout.duration
 
@@ -32,8 +32,8 @@ class AdminActor(reextrRef: ActorRef) extends Actor with ActorLogging {
       ).updatedProps(UserInfo.token.set(token))
 
       val f = for {
-        cg <- settings.porter.updateGroup(group)
-        ca <- settings.porter.createNewAccount(acc.updatedGroups(_ + group.name))
+        cg <- porter.updateGroup(group)
+        ca <- porter.createNewAccount(acc.updatedGroups(_ + group.name))
       } yield ca
       f map { makeResult("New user created.") } pipeTo sender
 
@@ -57,8 +57,7 @@ class AdminActor(reextrRef: ActorRef) extends Actor with ActorLogging {
       reextrRef forward req
   }
   
-  private def modifyAccount(name: Ident)(f: Account => Account) =
-    settings.porter.updateAccount(name, f)
+  private def modifyAccount(name: Ident)(f: Account => Account) = porter.updateAccount(name, f)
 
   private def makeResult(msg: String)(of: OperationFinished) = of match {
     case OperationFinished(true, _) => Success(msg)

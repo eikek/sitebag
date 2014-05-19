@@ -15,27 +15,17 @@ trait MongoTest extends ActorTestBase {
   val settings = SitebagSettings(system)
   implicit val timeout: Timeout = 5.seconds
 
-  private var usedDbs: List[String] = Nil
-  var dbname = ""
-  var mongo: SitebagMongo = _
-  var storeRef: ActorRef = _
+  val dbname = testName + System.currentTimeMillis()
+  val mongo: SitebagMongo = SitebagMongo(settings).withDbName(dbname)
+  val storeRef: ActorRef = system.actorOf(MongoStoreActor(mongo))
 
   before {
-    dbname = testName + System.currentTimeMillis()
-    usedDbs = dbname :: usedDbs
-    mongo = MongoTest.createMongoClient(dbname)
-    storeRef = system.actorOf(MongoStoreActor(dbname))
-  }
-
-  after {
-    mongo.close()
-    Thread.sleep(1000)
+    Await.ready(mongo.db.drop(), 10.seconds)
   }
 
   override def afterAll() = {
+    Await.ready(mongo.db.drop(), 10.seconds)
     mongo.close()
-    Thread.sleep(1000)
-    usedDbs foreach { name => Await.ready(settings.makeMongoClient(name).db.drop(), 10.seconds) }
     super.afterAll()
   }
 }

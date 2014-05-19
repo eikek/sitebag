@@ -110,7 +110,7 @@ class AccountSearchActor(account: Ident, mongo: SitebagMongo) extends Actor with
       } else {
         rebuilder forward RebuildStart
       }
-    case rs: RebuildStatus =>
+    case rs: CheckRebuildStatus =>
       rebuilder forward rs
 
     case ListEntries(_, tags, archived, query, page, complete) =>

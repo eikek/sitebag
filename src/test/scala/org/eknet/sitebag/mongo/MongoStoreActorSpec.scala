@@ -17,7 +17,31 @@ class MongoStoreActorSpec extends ActorTestBase("MongoStoreActorSpec") with Mong
   import system.dispatcher
   import akka.pattern.ask
 
-  "A StoreActor" must {
+  "A StoreActor" should {
+    "Delete entries" in {
+      awaitCond(Await.result(mongo.countBinaries().map(_ == 0), 4.seconds), 12.seconds)
+      val fentry@FullPageEntry(entry, content) = commons.newEntry
+      storeRef ! AddEntry("testuser", fentry)
+      expectMsg(5.seconds, Success("Page added."))
+      awaitCond(Await.result(mongo.countBinaries().map(_ == 1), 4.seconds), 12.seconds)
+      storeRef ! AddBinary("testuser", entry.id, Binary(commons.newEntry.page))
+      expectMsg(Success(None, "Binary saved."))
+      awaitCond(Await.result(mongo.countBinaries().map(_ == 2), 4.seconds), 12.seconds)
+      def f = (storeRef ? GetEntryContent("testuser", entry.id)).mapTo[Result[Content]]
+      awaitCond(Await.result(f.map(r => r.asInstanceOf[Success[Content]].value.isDefined), 4.seconds), 12.seconds)
+
+      storeRef ! DropEntry("testuser", entry.id)
+      expectMsg(Success("Page removed."))
+      storeRef ! GetEntry("testuser", entry.id)
+      expectMsg(Success(None))
+      awaitCond(Await.result(mongo.countBinaries().map(_ == 0), 4.seconds), 12.seconds)
+      storeRef ! GetBinaryById(Binary(content).id)
+      expectMsg(Success(None))
+    }
+  }
+
+  it should {
+  //"and a StoreActor" should {
     "add and retrieve entries" in {
       val fentry@FullPageEntry(entry, c) = commons.newEntry
       storeRef ! AddEntry("testuser", fentry)
@@ -63,27 +87,6 @@ class MongoStoreActorSpec extends ActorTestBase("MongoStoreActorSpec") with Mong
       expectMsg(5.seconds, Success("Page added."))
       storeRef ! AddEntry("testuser", fentry)
       expectMsg(5.seconds, Success("Page already present."))
-    }
-
-    "Delete entries" in {
-      awaitCond(Await.result(mongo.countBinaries().map(_ == 0), 4.seconds), 12.seconds)
-      val fentry@FullPageEntry(entry, content) = commons.newEntry
-      storeRef ! AddEntry("testuser", fentry)
-      expectMsg(5.seconds, Success("Page added."))
-      awaitCond(Await.result(mongo.countBinaries().map(_ == 1), 4.seconds), 12.seconds)
-      storeRef ! AddBinary("testuser", entry.id, Binary(commons.newEntry.page))
-      expectMsg(Success(None, "Binary saved."))
-      awaitCond(Await.result(mongo.countBinaries().map(_ == 2), 4.seconds), 12.seconds)
-      def f = (storeRef ? GetEntryContent("testuser", entry.id)).mapTo[Result[Content]]
-      awaitCond(Await.result(f.map(r => r.asInstanceOf[Success[Content]].value.isDefined), 4.seconds), 12.seconds)
-
-      storeRef ! DropEntry("testuser", entry.id)
-      expectMsg(Success("Page removed."))
-      storeRef ! GetEntry("testuser", entry.id)
-      expectMsg(Success(None))
-      awaitCond(Await.result(mongo.countBinaries().map(_ == 0), 4.seconds), 12.seconds)
-      storeRef ! GetBinaryById(Binary(content).id)
-      expectMsg(Success(None))
     }
 
     "tag entries" in {
