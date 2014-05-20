@@ -40,9 +40,13 @@ class AdminActor(reextrRef: ActorRef, porter: PorterContext, mongo: SitebagMongo
         secrets = Password(password) :: token.toSecret :: Nil
       ).updatedProps(UserInfo.token.set(token))
 
+      def makeAccount: Account => Account = _.updatedGroups(_ + group.name).updatedProps { props =>
+        if (UserInfo.token.get(props).isDefined) props
+        else UserInfo.token.set(token).apply(props)
+      }
       val f = for {
-        cg <- porter.updateGroup(group)
-        ca <- porter.createNewAccount(acc.updatedGroups(_ + group.name))
+        cg <- porter.updateGroup(account, _.updatedRules(_ + s"sitebag:${account.name}:*")).recoverWith({ case _ => porter.updateGroup(group) })
+        ca <- porter.updateAccount(account, makeAccount).recoverWith({ case _ => porter.createNewAccount(acc.updatedGroups(_ + group.name)) })
       } yield ca
       f map { makeResult("New user created.") } pipeTo sender
 
