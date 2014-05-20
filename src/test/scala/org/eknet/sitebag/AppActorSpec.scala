@@ -12,10 +12,6 @@ class AppActorSpec extends ActorTestBase("AppActorSpec") with MongoTest {
   import commons._
   val extrRef = system.actorOf(ExtractionActor())
 
-  override def afterAll() = {
-    system.shutdown()
-  }
-
   override val storeRef = system.actorOf(DummyStoreActor())
   val search = system.actorOf(SearchActor(mongo))
 
@@ -23,10 +19,16 @@ class AppActorSpec extends ActorTestBase("AppActorSpec") with MongoTest {
     "fetch and store pages" in {
       val clientRef = createHtmlClient(extrRef, "test.html")
       val appRef = system.actorOf(AppActor(clientRef, storeRef, search))
-      appRef ! Add("testaccount", ExtractRequest("http://dummy"))
-      expectMsgPF(5.seconds) {
-        case Success(Some(id: String), _) =>
-      }
+      val entry = commons.newEntry.entry
+      appRef ! Add("testaccount", ExtractRequest(entry.url))
+      expectMsg(Success(entry.id, "Page added."))
+    }
+
+    "tell if the page already exists" in {
+      val clientRef = createHtmlClient(extrRef, "test.html")
+      val appRef = system.actorOf(AppActor(clientRef, storeRef, search))
+      appRef ! Add("testaccount", ExtractRequest(DummyStoreActor.existingEntry.url))
+      expectMsg(Success(DummyStoreActor.existingEntry.id, "Document does already exist."))
     }
 
     "return an error for 404 response" in {

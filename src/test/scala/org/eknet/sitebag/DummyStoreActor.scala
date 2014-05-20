@@ -33,6 +33,10 @@ class DummyStoreActor extends Actor {
       val obj = if (entryId != DummyStoreActor.existingEntry.id) Success(None)
                 else Success(DummyStoreActor.existingEntry)
       sender ! obj
+    case GetEntryMeta(account, entryId) =>
+      val obj = if (entryId != DummyStoreActor.existingEntry.id) Success(None)
+      else Success(DummyStoreActor.existingEntry)
+      sender ! obj
 
     case r: GetEntryContent =>
       val obj = if (r.entryId != DummyStoreActor.existingEntry.id) Success(None)

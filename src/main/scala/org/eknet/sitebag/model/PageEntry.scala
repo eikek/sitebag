@@ -14,10 +14,13 @@ case class PageEntry(title: String,
 
   require(title.nonEmpty, "title is required")
 
-  final val id = Hash.md5String(url.toString())
+  final val id = PageEntry.makeId(url)
   def withTags(t1: Tag, ts: Tag*) = copy(tags = tags ++ (t1 +: ts))
 
   def toFullEntry(page: Content) = FullPageEntry(this, page)
+}
+object PageEntry {
+  def makeId(url: Uri) = Hash.md5String(url.toString())
 }
 case class FullPageEntry(entry: PageEntry, page: Content)
 case class PageEntryMeta(url: Uri, archived: Boolean, created: DateTime, tags: Set[Tag])

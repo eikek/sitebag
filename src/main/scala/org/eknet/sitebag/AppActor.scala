@@ -107,9 +107,20 @@ object AppActor {
 
     def idle: Receive = {
       case req: Add =>
+        context.become(waitForPage(req, sender))
+        store ! GetEntryMeta(req.account, PageEntry.makeId(req.page.url))
+    }
+
+    def waitForPage(req: Add, client: ActorRef): Receive = {
+      case Success(Some(_), _) =>
+        log.debug("Document already exist. Do not fetch "+ req.page.url +" for "+ req.account.name)
+        client ! Success(PageEntry.makeId(req.page.url), "Document does already exist.")
+        context.stop(self)
+
+      case _ =>
         log.debug(s"About to fetch page at ${req.page.url}")
         clientRef ! req.page
-        context.become(waitforContent(req, sender))
+        context.become(waitforContent(req, client))
     }
 
     def waitforContent(add: Add, client: ActorRef): Receive = {
@@ -149,7 +160,7 @@ object AppActor {
           }
         }
         context.system.eventStream.publish(EntrySaved(add.account, pentry))
-        client ! Success(pentry.entry.id, "Document saved successfully.")
+        client ! Success(pentry.entry.id, saved.message)
         context.stop(self)
 
       case notsaved@ Failure(msg, error) =>
