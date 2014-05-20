@@ -55,6 +55,14 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String) {
   // ~~~~~~
   import SitebagMongo._
 
+  def deleteData(account: Ident)(implicit ec: ExecutionContext) = {
+    val ent = entries(account)
+    val ts  = tags(account)
+    val dele = ent.create().recover({case _ => false }).flatMap(_ => ent.drop())
+    val delt = ts.create().recover({case _ => false }).flatMap(_ => ts.drop())
+    for (a <- dele; b <- delt) yield a && b
+  }
+
   private def updateArchivedFlag(account: Ident, entryId: String, ts: DateTime)(f: PageEntryMetadata => Boolean)(implicit ec: ExecutionContext) = {
     for {
       meta <- entries(account).find(Id(entryId), PageEntryMetadata.filter).one[PageEntryMetadata]

@@ -16,4 +16,8 @@ trait FormDataSerialize {
   implicit class FlagSerialze(f: Flag) {
     def toFormData = FormData(Map("flag" -> f.flag.toString))
   }
+
+  implicit class DeleteSeriaize(da: DeleteAction) {
+    def toFormData = FormData(Map("delete" -> da.delete.toString))
+  }
 }

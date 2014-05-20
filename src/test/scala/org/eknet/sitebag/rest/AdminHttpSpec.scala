@@ -1,19 +1,17 @@
 package org.eknet.sitebag.rest
 
+import scala.concurrent._
 import spray.testkit.Specs2RouteTest
-import spray.routing.{Route, AuthorizationFailedRejection, HttpService}
+import spray.routing.{AuthorizationFailedRejection, HttpService}
 import akka.util.Timeout
 import java.util.concurrent.TimeUnit
 import org.eknet.sitebag._
 import spray.httpx.SprayJsonSupport
-import spray.http.HttpHeaders._
 import spray.http.{StatusCodes, BasicHttpCredentials}
 import org.eknet.sitebag.{AdminActor, SitebagSettings}
 import scala.concurrent.duration.FiniteDuration
 import org.specs2.mutable.Specification
-import porter.app.client.spray.PorterDirectives
-import scala.concurrent.Await
-import org.eknet.sitebag.mongo.ReextractActor
+import org.eknet.sitebag.mongo.SitebagMongo
 
 class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService with FormDataSerialize {
   sequential
@@ -24,8 +22,14 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
   import SprayJsonSupport._
 
   private val settings = SitebagSettings(system)
-  private val adminActor = system.actorOf(AdminActor(null, settings.porter))
+  private val mongo = SitebagMongo(settings)
+  private val adminActor = system.actorOf(AdminActor(null, settings.porter, mongo, settings))
   implicit val routeTo = RouteTestTimeout(FiniteDuration(10, TimeUnit.SECONDS))
+
+  def dropDb() = {
+    Await.ready(mongo.db.drop(), timeout.duration)
+    true
+  }
 
   def route(subject: String) =
     new AdminHttp(settings, adminActor, actorRefFactory.dispatcher, timeout).route(subject, settings.porter)
@@ -36,6 +40,8 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
   def asSuperuser = as("superuser")
 
   "The admin http service" should {
+    doBefore { dropDb() }
+
     "create new user with success for admins" in {
       val name1 = commons.randomWord
       val name2 = commons.randomWord
@@ -75,6 +81,29 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
             error.map(x => throw x).getOrElse(sys.error(msg))
         }
       }
+    }
+    "delete accounts" in {
+      def checkResponse = {
+        status === StatusCodes.OK
+        responseAs[Ack] match {
+          case Success(_, msg) => assert(msg === "Account removed."); true
+          case Failure(msg, error) =>
+            error.map(x => throw x).getOrElse(sys.error(msg))
+        }
+      }
+      def checkDeleteMaryAs(name: String) = {
+        Post("/", DeleteAction(true)) ~> as(name) ~> route("mary") ~> check {
+          checkResponse
+        }
+        Post("/", DeleteAction(true).toFormData) ~> as(name) ~> route("mary") ~> check {
+          checkResponse
+        }
+        Delete("/") ~> as(name) ~> route("mary") ~> check {
+          checkResponse
+        }
+      }
+      checkDeleteMaryAs("mary")
+      checkDeleteMaryAs("superuser")
     }
   }
 

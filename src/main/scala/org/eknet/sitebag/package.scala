@@ -50,6 +50,7 @@ package object sitebag {
    */
   trait SitebagMessage
   case class CreateUser(newaccount: Ident, newpassword: String) extends SitebagMessage
+  case class DeleteUser(account: Ident) extends SitebagMessage
   case class GenerateToken(account: Ident) extends SitebagMessage
   case class ChangePassword(account: Ident, newpassword: String) extends SitebagMessage
   case class Add(account: Ident, page: ExtractRequest, title: Option[String] = None, tags: Set[Tag] = Set.empty) extends SitebagMessage

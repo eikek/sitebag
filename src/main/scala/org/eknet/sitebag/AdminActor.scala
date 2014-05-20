@@ -10,17 +10,26 @@ import porter.util._
 import org.eknet.sitebag.model._
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import org.eknet.sitebag.mongo.ReextractActor
+import org.eknet.sitebag.mongo.{SitebagMongo, ReextractActor}
 import porter.app.client.PorterContext
 
 object AdminActor {
-  def apply(reextrRef: ActorRef, porter: PorterContext) = Props(classOf[AdminActor], reextrRef, porter)
+  def apply(reextrRef: ActorRef, porter: PorterContext, mongo: SitebagMongo, settings: SitebagSettings) =
+    Props(classOf[AdminActor], reextrRef, porter, mongo, settings)
 }
-class AdminActor(reextrRef: ActorRef, porter: PorterContext) extends Actor with ActorLogging {
+class AdminActor(reextrRef: ActorRef, porter: PorterContext, mongo: SitebagMongo, settings: SitebagSettings) extends Actor with ActorLogging {
   import context.dispatcher
 
   private implicit val timeout = Timeout(2, TimeUnit.SECONDS)
   private implicit val duration = timeout.duration
+
+  def removeSitebagAccount(account: Ident) =
+    if (settings.porterModeIsEmbedded) {
+      Future.sequence(porter.deleteAccount(account) :: porter.deleteGroup(account) :: Nil)
+        .map(list => OperationFinished(list.map(_.success).reduce(_ && _), None))
+    } else {
+      porter.updateGroup(account, _.updatedRules(_.filterNot(_.startsWith("sitebag:"))))
+    }
 
   def receive = {
     case CreateUser(account, password) =>
@@ -36,6 +45,16 @@ class AdminActor(reextrRef: ActorRef, porter: PorterContext) extends Actor with 
         ca <- porter.createNewAccount(acc.updatedGroups(_ + group.name))
       } yield ca
       f map { makeResult("New user created.") } pipeTo sender
+
+    case DeleteUser(account) =>
+      val f = for {
+        dtr <- mongo.deleteData(account)
+        OperationFinished(dar, error) <- removeSitebagAccount(account)
+      } yield
+        if (dtr && dar) Success("Account removed.")
+        else Failure(s"Failure removing account '${account.name}'. Parts of it may have been removed.", error)
+
+      f.recover({ case ex => Failure(s"Failure removing account '${account.name}'", Some(ex)) }) pipeTo sender
 
     case GenerateToken(account) =>
       val newtoken = Token.random

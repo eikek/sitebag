@@ -165,7 +165,12 @@ urls.
 This will remove the account and all its data.
 
     DELETE /<account>
+    POST /<account>?delete=true
     -> JSON { success: true, message: "" }
+
+If porter is embedded, the account is removed from the database. If 
+authentication is done on a remote instance, all sitebag permissions
+are removed from the group.
 
 If you remove an account using porter's console, the data related to
 this account is still there. You can manually drop the collection with

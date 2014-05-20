@@ -62,6 +62,9 @@ trait RestDirectives extends Directives with CommonDirectives {
   def checkCreateUser(porter: PorterContext, rctx: RestContext): Directive0 =
     authz2(porter, rctx.authId, Set("sitebag:createuser"))
 
+  def checkDeleteUser(porter: PorterContext, rctx: RestContext): Directive0 =
+    authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:delete"))
+
   def checkListTags(porter: PorterContext, rctx: RestContext): Directive0 =
     authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:listtags"))
 

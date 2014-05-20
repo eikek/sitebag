@@ -12,6 +12,8 @@ import org.eknet.sitebag.SitebagSettings
 import akka.actor.ActorRef
 import porter.client.PorterClient
 import porter.app.client.PorterContext
+import spray.json.RootJsonFormat
+import spray.httpx.marshalling.ToResponseMarshaller
 
 class AdminHttp(val settings: SitebagSettings, adminRef: ActorRef, ec: ExecutionContext, to: Timeout)
   extends Directives with RestDirectives with FormUnmarshaller {
@@ -25,6 +27,13 @@ class AdminHttp(val settings: SitebagSettings, adminRef: ActorRef, ec: Execution
 
   def route(subject: String, porter: PorterContext): Route = {
     pathEndOrSingleSlash {
+      deleteRequest {
+        checkAccess(subject, porter, checkDeleteUser) { rctx =>
+          complete {
+            (adminRef ? DeleteUser(rctx.subject)).mapTo[Ack]
+          }
+        }
+      } ~
       (put | post) {
         checkAccess(subject, porter, checkCreateUser) { rctx =>
           handle { np: NewPassword =>
@@ -57,5 +66,14 @@ class AdminHttp(val settings: SitebagSettings, adminRef: ActorRef, ec: Execution
         }
       }
     }
+  }
+
+  def deleteRequest: Directive0 = {
+    implicit val u =  unm(deleteActionFormat, deleteActionFormData)
+    def asParam: Directive0 = entity(as[DeleteAction]).flatMap {
+      case DeleteAction(true) => pass
+      case _                  => reject
+    }
+    delete | post.hflatMap(_ => asParam)
   }
 }

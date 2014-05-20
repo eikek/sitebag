@@ -6,6 +6,7 @@ import scala.util.Try
 sealed trait Result[+T] extends Serializable {
   def isSuccess: Boolean
   def isFailure: Boolean
+  def toOption: Option[T]
   def message: String
   def map[B](f: Option[T] => Option[B]): Result[B]
   def mapmap[B](f: T => B): Result[B]
@@ -17,6 +18,7 @@ final case class Failure(customMessage: String, error: Option[Throwable] = None)
   val isSuccess = false
   val isFailure = true
 
+  def toOption = None
   def message = if (customMessage.nonEmpty) customMessage else error.map(_.getMessage).getOrElse("An error occured.")
   def map[B](f: (Option[Nothing]) => Option[B]) = this
   def mapmap[B](f: (Nothing) => B) = this
@@ -34,6 +36,7 @@ final case class Success[T](value: Option[T], message: String) extends Result[T]
   val isSuccess = true
   val isFailure = false
 
+  def toOption = value
   def map[B](f: (Option[T]) => Option[B]) = Try(f(value)) match {
     case scala.util.Success(b) => Success(b, message)
     case scala.util.Failure(ex) => Failure(ex.getMessage, Some(ex))

@@ -28,7 +28,7 @@ class SitebagService extends HttpServiceActor with Actor with ActorLogging with 
   val search = context.actorOf(SearchActor(mongo), "search")
   val app = context.actorOf(AppActor(httpclient, store, search), "app")
 
-  val admin = context.actorOf(AdminActor(reextractor, settings.porter), "admin")
+  val admin = context.actorOf(AdminActor(reextractor, settings.porter, mongo, settings), "admin")
   val adminHttp = new AdminHttp(settings, admin, executionContext, timeout)
   val appHttp = new AppHttp(settings, app, context, executionContext, timeout)
   val webHttp = new WebHttp(settings, store, context, timeout)

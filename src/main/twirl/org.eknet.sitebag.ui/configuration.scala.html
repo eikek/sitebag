@@ -127,6 +127,21 @@
     <a href="#" id="sb-reextract-btn" class="btn btn-default sb-reextract-btn">Submit</a>
   </form>
 </div>
+<hr/>
+<div class="sb-delete-account">
+  <h2>Delete Account</h2>
+  <p>Use the form below to delete your account. You must type in your account name to verify that you really
+  want to delete it.</p>
+  <form role="form" class="form-horizontal">
+    <div class="form-group">
+      <label for="sb-delete-account-text" class="control-label col-sm-3">Account:</label>
+      <div class="col-sm-4">
+        <input id="sb-delete-account-text" name="accountname" type="text" class="form-control" required="required"/>
+      </div>
+    </div>
+    <a href="#" class="btn btn-default sb-deleteaccount-btn">Delete</a>
+  </form>
+</div>
 @if(user.canCreateUser) {
 <hr/>
 <div class="sb-create-user">
@@ -180,6 +195,27 @@
     postJson(settings.apiPath("/reextract"), { "entryId": entryid }, function(data) {
       feedback(data);
     });
+    ev.preventDefault();
+    return false;
+  });
+  $('.sb-deleteaccount-btn').click(function(ev) {
+    spin($(this).parent());
+    var accountEl = $('input#sb-delete-account-text');
+    var accountName = accountEl.val();
+    if (accountName) {
+      var api = settings.pathprefix + 'api/' + accountName
+      postJson(api, { "delete": true }, function(data) {
+        stopSpin($(this).parent());
+        if (settings.username === accountName) {
+          alert("Good bye.");
+        } else {
+          $('input#sb-delete-account-text').val("");
+          feedback(data);
+        }
+      });
+    } else {
+      feedback({success: false, message: "No account name specified."})
+    }
     ev.preventDefault();
     return false;
   });

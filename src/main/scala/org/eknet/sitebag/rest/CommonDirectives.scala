@@ -17,7 +17,7 @@ trait CommonDirectives extends Directives with FormUnmarshaller {
   def unmarshalFormOrJson[A](json: RootJsonFormat[A], fdm: FormDataUnmarshaller[A]) =
     Unmarshaller.oneOf(SprayJsonSupport.sprayJsonUnmarshaller(json), fdm)
 
-  implicit def unm[A, B](implicit json: RootJsonFormat[A], fdm: FormDataUnmarshaller[A], m: ToResponseMarshaller[B]) = UnmarshallerLifting.fromRequestUnmarshaller(
+  implicit def unm[A, B](implicit json: RootJsonFormat[A], fdm: FormDataUnmarshaller[A]) = UnmarshallerLifting.fromRequestUnmarshaller(
     UnmarshallerLifting.fromMessageUnmarshaller(unmarshalFormOrJson(json, fdm)))
 
   def handle[A, B](f: A => B)(implicit json: RootJsonFormat[A], fdm: FormDataUnmarshaller[A], m: ToResponseMarshaller[B]): Route = {
