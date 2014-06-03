@@ -1,0 +1,73 @@
+#+TODO: TODO BUG | WONTFIX DONE
+
+* SiteBag
+
+  :PROPERTIES: 
+  :project: sitebag
+  :dev-version: 0.2.0-SNAPSHOT
+  :current-release: 0.1.2
+  :END:
+
+** Implementation notes
+
+** Issues
+
+*** TODO pdf support                                                  :r0.2.0:
+
+When a link to a pdf file is sent to sitebag, it should try to extract
+the contents using some library like [[http://pdfbox.apache.org][pdfbox]] or [[http://tika.apache.org][tika]].
+
+*** TODO provide sitebag links in content                             :r0.2.0:
+
+- all links in a page should be rewritten to sitebag-internal links if
+  the page exists
+- if not, provide a link that adds it
+
+*** BUG support txt files                                             :r0.2.0:
+
+TXT files are poorly converted into html. They are not readable, since
+they are stored as is. It needs to be wrapped in some simple html;
+like wrap all paragraphs in <p/>s.
+
+*** TODO refactor client javascript
+
+this is a mess right now... 
+
+*** TODO delete/rename tags
+
+*** TODO share links via email
+
+- share sitebag links via email
+- use original links or create a public url to the sitebag link?
+
+*** TODO i18n 
+
+pages and server responses should be localized
+
+*** TODO show similiar entries
+
+try to find simliar entries in sitebag and list them
+
+*** TODO provide api to verify tag and account names
+
+- this could aid ui of rest clients 
+
+*** TODO support for video files
+
+video files should be stored like images in sitebag (make it configureable)
+
+*** TODO show some simple stats
+
+- group by url/host
+- number of articles
+- ...?
+
+*** TODO registration of new users via web
+
+- new users can register themselves via web interface
+- admin can set a "invitation key", to prevent anonymous registration
+
+*** TODO import/export of all data
+
+Since mongo is the only supported db, this could be simply a mongo
+dump...
