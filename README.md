@@ -61,17 +61,35 @@ cannot be setup via the web interface. Please use the following steps to
 add a admin user, with all permissions. In a terminal type:
 
     $ telnet localhost 9996
-    > update realm
-    name: default
-    description:
-    > update group
+    Connected to localhost.
+    Escape character is '^]'.
+     
+    Welcome to porter 0.2.0
+     
+    Type 'help' for a list of available commands.
+     
+    porter> update realm
+    Enter the realm properties.
+    realm id: default
+    realm name: 
+    Realm updated: Realm(Ident(default),)
+    porter> use realm default
+    Using realm default: 
+    (default) porter> update group
+    Enter group details.
     name: admin
     rules: sitebag:*
-    props:
-    > update account
+    props: 
+    Group updated.
+    (default) porter> update account
+    Enter the account details.
     name: admin
     groups: admin
     password: admin
+    props: 
+    Account updated: true
+    (default) porter> Good bye.
+    Connection closed by foreign host.
 
 Now you can login with username "admin" and password "admin" at <http://localhost:9995/ui/conf>.
 Of course, you can choose different name and password. The rule `sitebag:*` means that this user
