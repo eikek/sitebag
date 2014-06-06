@@ -12,7 +12,17 @@ sealed trait Result[+T] extends Serializable {
   def mapmap[B](f: T => B): Result[B]
   def flatMap[B](f: Option[T] => Result[B]): Result[B]
 }
-
+object Result {
+  def flatten[A](in: List[Result[A]]): Result[List[A]] = {
+    @scala.annotation.tailrec
+    def loop(in: List[Result[A]], out: Result[List[A]]): Result[List[A]] = in match {
+      case Nil => out.mapmap(_.reverse)
+      case Success(x, _) :: as => loop(as, out.mapmap(l => x.toList ::: l))
+      case (f: Failure) :: _ => f
+    }
+    loop(in, Success(Nil))
+  }
+}
 final case class Failure(customMessage: String, error: Option[Throwable] = None) extends Result[Nothing] {
   require(customMessage.nonEmpty || error.isDefined, "Either an error message or an exception must be supplied")
   val isSuccess = false

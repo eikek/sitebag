@@ -1,14 +1,18 @@
 package org.eknet.sitebag
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.concurrent.Future
 import akka.actor.{Props, ActorRef, Actor, ActorLogging}
+import akka.util.Timeout
+import porter.model.Ident
 import org.eknet.sitebag.content.{ExtractedContent, Content}
 import org.eknet.sitebag._
-import akka.util.Timeout
 import org.eknet.sitebag.AppActor.FetchPageWorker
 import org.eknet.sitebag.model.{PageEntry, FullPageEntry, Binary}
+import org.jsoup.Jsoup
 
-class AppActor(clientRef: ActorRef, store: ActorRef, search: ActorRef) extends Actor with ActorLogging {
+class AppActor(clientRef: ActorRef, store: ActorRef, search: ActorRef, settings: SitebagSettings) extends Actor with ActorLogging {
   import akka.pattern.ask
   import akka.pattern.pipe
   import context.dispatcher
@@ -20,7 +24,12 @@ class AppActor(clientRef: ActorRef, store: ActorRef, search: ActorRef) extends A
       worker forward req
 
     case r: GetEntry =>
-      store forward r
+      val rewrite = AppActor.rewriteLinks(settings, store, r.account)_
+      val f = (store ? r).mapTo[Result[PageEntry]].flatMap {
+        case Success(Some(e), _) => rewrite(e)
+        case x => Future.successful(x)
+      }
+      f pipeTo sender
 
     case r: GetEntryMeta =>
       store forward r
@@ -79,10 +88,20 @@ class AppActor(clientRef: ActorRef, store: ActorRef, search: ActorRef) extends A
       store forward req
 
     case req: ListEntries =>
-      if (req.query.isEmpty) {
-        store forward req
+      val f = if (req.query.isEmpty) {
+        (store ? req).mapTo[Result[List[PageEntry]]]
       } else {
-        search forward req
+        (search ? req).mapTo[Result[List[PageEntry]]]
+      }
+      if (req.complete) {
+        val rewrite = AppActor.rewriteLinks(settings, store, req.account)_
+        val rf: Future[Result[List[PageEntry]]] = f.flatMap {
+          case Success(Some(list), _) => Future.sequence(list.map(rewrite)).map(Result.flatten)
+          case x => Future.successful(x)
+        }
+        rf pipeTo sender
+      } else {
+        f pipeTo sender
       }
 
     case req: GetBinaryById =>
@@ -94,7 +113,38 @@ class AppActor(clientRef: ActorRef, store: ActorRef, search: ActorRef) extends A
 }
 
 object AppActor {
-  def apply(clientRef: ActorRef, storeRef: ActorRef, searchRef: ActorRef) = Props(classOf[AppActor], clientRef, storeRef, searchRef)
+  def apply(clientRef: ActorRef, storeRef: ActorRef, searchRef: ActorRef, settings: SitebagSettings) =
+    Props(classOf[AppActor], clientRef, storeRef, searchRef, settings)
+
+
+  def rewriteLinks(settings: SitebagSettings, store: ActorRef, account: Ident)(entry: PageEntry)(implicit ec: ExecutionContext, to: Timeout): Future[Result[PageEntry]] = {
+    import scala.collection.JavaConverters._
+    import akka.pattern.ask
+
+    val doc = Jsoup.parseBodyFragment(entry.content)
+    val fs = Future.sequence(for (e <- doc.select("a[href]").iterator().asScala.toSeq) yield {
+      val id = PageEntry.makeId(e.attr("href"))
+      (store ? GetEntry(account, id)).mapTo[Result[PageEntry]].map(r => e -> r)
+    })
+    fs.map { seq =>
+      seq.foreach {
+        case (el, Success(Some(en), _)) =>
+          val url = el.attr("href")
+          el.attr("href", settings.uiUri("entry/"+en.id).toString())
+          el.attr("title", url)
+        case (el, Success(None, _)) =>
+          val adde = el.clone()
+          adde.attr("href", "#")
+          adde.attr("class", "sb-add-entry-link")
+          adde.attr("data-id", el.attr("href"))
+          adde.attr("title", "Add to SiteBag")
+          adde.html("&nbsp;<span class=\"glyphicon glyphicon-download-alt small\"></span>")
+          el.after(adde)
+        case _ =>
+      }
+      Success(entry.copy(content = doc.body().html()))
+    }
+  }
 
 
   class FetchPageWorker(clientRef: ActorRef, store: ActorRef) extends Actor with ActorLogging {

@@ -27,7 +27,7 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
   private val settings = SitebagSettings(system)
   private val storeActor = system.actorOf(DummyStoreActor())
   private val clientActor = createClient(extrRef, HttpResponse(entity = HttpEntity(htmlType, "<html>Hello world</html>")))
-  private val appRef = system.actorOf(AppActor(clientActor, storeActor, null))
+  private val appRef = system.actorOf(AppActor(clientActor, storeActor, null, settings))
   private def route(subject: String) =
     new AppHttp(settings, appRef, system, system.dispatcher, timeout).route(subject)
 

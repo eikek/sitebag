@@ -71,7 +71,7 @@ class AccountSearchActor(account: Ident, mongo: SitebagMongo) extends Actor with
 
       case Failure(msg, error) =>
         error.map(e => log.error(e, msg)).getOrElse(log.error(msg))
-        waitForNext(client, responses +1, sent, started)
+        waitForNext(client, responses + 1, sent, started)
     }
 
     def done(client: ActorRef, all: Int, time: Long) {
@@ -118,9 +118,11 @@ class AccountSearchActor(account: Ident, mongo: SitebagMongo) extends Actor with
       else {
         val qm = new ListQuery(query, tags, archived)
         val f = (indexActor ? QueryDirectory.create[PageEntry](qm, page)).mapTo[Result[Iterable[PageEntry]]]
-        val result = if (complete) {
+        val result: Future[Result[List[PageEntry]]] = if (complete) {
           f.flatMap {
-            case Success(list, _) => Future.sequence(list.getOrElse(Nil).toList.map(e => mongo.getEntry(account, e.id)))
+            case Success(list, _) =>
+              val entries = list.getOrElse(Iterable.empty).toList
+              Future.sequence(entries.map(e => mongo.getEntry(account, e.id))).map(Result.flatten)              
             case f: Failure => Future.successful(f)
           }
         } else {

@@ -1,6 +1,6 @@
 #+TODO: TODO BUG | WONTFIX DONE
 
-* SiteBag
+* SiteBag                                                           :sitebag:
 
   :PROPERTIES: 
   :project: sitebag
@@ -11,63 +11,86 @@
 ** Implementation notes
 
 ** Issues
+*** TODO make "api home" endpoint
+    [2014-06-06]
 
-*** TODO pdf support                                                  :r0.2.0:
+    There should be a "home" like endpoint, like "/api" that returns a
+    map of endpoints.
 
-When a link to a pdf file is sent to sitebag, it should try to extract
-the contents using some library like [[http://pdfbox.apache.org][pdfbox]] or [[http://tika.apache.org][tika]].
+    This would reduce client impls, they would need to lookup in this
+    map the other endpoints. The keys must be stable (belong to
+    sitebag's public api).
+   
+*** TODO pdf support
 
-*** TODO provide sitebag links in content                             :r0.2.0:
+    :PROPERTIES: 
+    :release:  0.3.0
+    :END:
 
-- all links in a page should be rewritten to sitebag-internal links if
-  the page exists
-- if not, provide a link that adds it
+    When a link to a pdf file is sent to sitebag, it should try to
+    extract the contents using some library like [[http://pdfbox.apache.org][pdfbox]] or [[http://tika.apache.org][tika]].
 
-*** BUG support txt files                                             :r0.2.0:
+*** DONE provide sitebag links in content
+    CLOSED: [2014-06-07 Sa 00:23]
 
-TXT files are poorly converted into html. They are not readable, since
-they are stored as is. It needs to be wrapped in some simple html;
-like wrap all paragraphs in <p/>s.
+    :PROPERTIES: 
+    :release:  0.2.0
+    :END:
+
+    The page entry contains links to other pages. Those links should
+    be rewritten, such that they point to the version in sitebag
+    instead. If they're not added, another link needs to be included,
+    that would add it to sitebag.
+
+*** BUG support txt files
+
+    :PROPERTIES: 
+    :release:  0.2.0
+    :END:
+
+    TXT files are poorly converted into html. They are not readable,
+    since they are stored as is. It needs to be wrapped in some simple
+    html; like wrap all paragraphs in <p/>s.
 
 *** TODO refactor client javascript
 
-this is a mess right now... 
+    this is a mess right now... 
 
 *** TODO delete/rename tags
 
 *** TODO share links via email
 
-- share sitebag links via email
-- use original links or create a public url to the sitebag link?
+    - share sitebag links via email
+    - use original links or create a public url to the sitebag link?
 
 *** TODO i18n 
 
-pages and server responses should be localized
+    pages and server responses should be localized
 
 *** TODO show similiar entries
 
-try to find simliar entries in sitebag and list them
+    try to find simliar entries in sitebag and list them
 
 *** TODO provide api to verify tag and account names
 
-- this could aid ui of rest clients 
+    - this could aid ui of rest clients 
 
 *** TODO support for video files
 
-video files should be stored like images in sitebag (make it configureable)
+    video files should be stored like images in sitebag (make it configureable)
 
 *** TODO show some simple stats
 
-- group by url/host
-- number of articles
-- ...?
+    - group by url/host
+    - number of articles
+    - ...?
 
 *** TODO registration of new users via web
 
-- new users can register themselves via web interface
-- admin can set a "invitation key", to prevent anonymous registration
+    - new users can register themselves via web interface
+    - admin can set a "invitation key", to prevent anonymous registration
 
 *** TODO import/export of all data
 
-Since mongo is the only supported db, this could be simply a mongo
-dump...
+    Since mongo is the only supported db, this could be simply a mongo
+    dump...

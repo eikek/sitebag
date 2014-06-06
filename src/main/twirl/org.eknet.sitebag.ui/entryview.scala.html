@@ -80,6 +80,26 @@
       }
     });
   }
+
+  function bindAddLinks() {
+    $('.sb-add-entry-link').click(function(ev) {
+      var self = $(this);
+      var url = self.attr('data-id');
+      if (url) {
+        spin(self.parent());
+        ajaxPost(settings.apiPath("/entry"), { url: url }, function(data) {
+          stopSpin(self.parent());
+          feedback(data);
+          if (data.success) {
+            self.remove();
+            $('a[href="'+url+'"]').attr("href", settings.uiPath("/entry/"+data.value))
+          }
+        });
+      }
+      ev.preventDefault();
+      return false;
+    });
+  }
   spin($('.sb-entry-content'));
   getEntry(false, function(entry) {
     sb_renderActions(entry);
@@ -88,5 +108,6 @@
     rewriteUrls();
     codeHighlight();
     stopSpin($('.sb-entry-content'));
+    bindAddLinks();
   });
 </script>

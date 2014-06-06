@@ -20,7 +20,8 @@ case class PageEntry(title: String,
   def toFullEntry(page: Content) = FullPageEntry(this, page)
 }
 object PageEntry {
-  def makeId(url: Uri) = Hash.md5String(url.toString())
+  def makeId(url: String): String = Hash.md5String(url)
+  def makeId(url: Uri): String = makeId(url.toString())
 }
 case class FullPageEntry(entry: PageEntry, page: Content)
 case class PageEntryMeta(url: Uri, archived: Boolean, created: DateTime, tags: Set[Tag])
