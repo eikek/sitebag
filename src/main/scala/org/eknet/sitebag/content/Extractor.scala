@@ -1,9 +1,9 @@
 package org.eknet.sitebag.content
 
-import spray.http.{ContentType, MediaTypes}
-import scala.util.Try
 import org.eknet.sitebag._
 import org.eknet.sitebag.utils._
+import scala.util.Try
+import spray.http.{ ContentType, MediaTypes, Uri }
 
 /**
  * Extracts the main text content of response object.
@@ -46,9 +46,12 @@ object Extractor {
 object TextplainExtractor extends Extractor {
   val textPlain = MediaTypes.`text/plain`
   val pf: PartialFunction[Content, ExtractedContent] = {
-    case c@Content(uri, Some(ContentType(`textPlain`, cset)), data) =>
+    case c @ Content(uri, Some(ContentType(`textPlain`, cset)), data) =>
       val extracted = data.decodeString(cset.map(_.value).getOrElse("UTF-8"))
-      val title = uri.path.reverse.head.toString
+      val title = uri.path match {
+        case Uri.Path.Empty => uri.toString
+        case path => path.reverse.head.toString
+      }
       ExtractedContent(c, title, addMinimalHtml(extracted), extracted.takeDots(180), None, Set.empty)
   }
 
@@ -65,13 +68,13 @@ object TextplainExtractor extends Extractor {
   }
 
   /**
-    * Inspects the string and adds some simple html tags around
-    * paragraphs and headlines.
-    *
-    * Single lines with a previous and following empty line are
-    * recognized as headlines if they start with a numbering scheme
-    * like `1.2`.
-    */
+   * Inspects the string and adds some simple html tags around
+   * paragraphs and headlines.
+   *
+   * Single lines with a previous and following empty line are
+   * recognized as headlines if they start with a numbering scheme
+   * like `1.2`.
+   */
   def addMinimalHtml(text: String): String = {
     val normed = "\n" + text.trim
     val html = normed.split("\r\n\r\n|\n\n") map {

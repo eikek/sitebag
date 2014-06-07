@@ -1,14 +1,13 @@
 package org.eknet.sitebag.content
 
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.{ FlatSpec, Matchers }
 
 class TextplainExtractorSpec extends FlatSpec with Matchers {
 
   "A TextplainExtractor" should "add some html around paragraphs" in {
     val text = "first word or the next word.\nnext work or the first work"
     val extr = TextplainExtractor.addMinimalHtml(text)
-    assert(extr === ("<p>"+text+"</p>"))
+    assert(extr === ("<p>" + text + "</p>"))
   }
 
   it should "find simple headlines" in {
@@ -45,6 +44,14 @@ class TextplainExtractorSpec extends FlatSpec with Matchers {
                     |a few lines</p>""".stripMargin
 
     assert(extr === exspect)
+  }
+
+  it should "not fail on weird content" in {
+    val text = "{ /%&() }" :: "" :: "   " :: "\n\n\n\n \n\n\n \n\n \n \n\n" :: Nil
+    text foreach { txt =>
+      val extr = TextplainExtractor.addMinimalHtml(txt)
+      assert(extr === ("<p>" + txt.trim + "</p>"))
+    }
   }
 
 }

@@ -1,12 +1,12 @@
 package org.eknet.sitebag
 
-import akka.testkit.{ImplicitSender, TestKit}
 import akka.actor.ActorSystem
+import akka.testkit.{ ImplicitSender, TestKit }
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{WordSpecLike, BeforeAndAfterAll}
-import spray.http._
-import org.eknet.sitebag.content.ExtractedContent
 import commons._
+import org.eknet.sitebag.content.ExtractedContent
+import org.scalatest.{ BeforeAndAfterAll, WordSpecLike }
+import spray.http._
 
 class HttpClientActorSpec extends TestKit(ActorSystem("HttpClientActorSpec", ConfigFactory.load("reference")))
   with WordSpecLike with BeforeAndAfterAll with ImplicitSender {
@@ -39,12 +39,15 @@ class HttpClientActorSpec extends TestKit(ActorSystem("HttpClientActorSpec", Con
 
     "create an untitled page for weird content" in {
       val ref = createClient(extrRef, HttpResponse(status = StatusCodes.OK, entity = "{ /%&() }"))
+      println(HttpResponse(status = StatusCodes.OK, entity = "{ /%&() }"))
       ref ! ExtractRequest("http://dummy")
       expectMsgPF() {
         case Success(Some(ExtractedContent(org, title, text, short, _, bins)), _) =>
           assert(org.uri === Uri("http://dummy"))
-          assert(title === "No title")
-          assert(text === "{ /%&() }")
+          assert(title === "http://dummy")
+          assert(text === "<p>{ /%&() }</p>")
+        case Failure(_, Some(ex)) => ex.printStackTrace()
+        case other => sys.error("Problem: " + other)
       }
     }
   }
