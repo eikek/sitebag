@@ -42,7 +42,8 @@
     instead. If they're not added, another link needs to be included,
     that would add it to sitebag.
 
-*** BUG support txt files
+*** DONE support txt files
+    CLOSED: [2014-06-07 Sa 17:15]
 
     :PROPERTIES: 
     :release:  0.2.0

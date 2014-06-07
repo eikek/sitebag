@@ -46,9 +46,40 @@ object Extractor {
 object TextplainExtractor extends Extractor {
   val textPlain = MediaTypes.`text/plain`
   val pf: PartialFunction[Content, ExtractedContent] = {
-    case c@Content(_, Some(ContentType(`textPlain`, cset)), data) =>
+    case c@Content(uri, Some(ContentType(`textPlain`, cset)), data) =>
       val extracted = data.decodeString(cset.map(_.value).getOrElse("UTF-8"))
-      ExtractedContent(c, "No title", extracted, extracted.takeDots(180), None, Set.empty)
+      val title = uri.path.reverse.head.toString
+      ExtractedContent(c, title, addMinimalHtml(extracted), extracted.takeDots(180), None, Set.empty)
+  }
+
+  private object MultiLine {
+    def unapply(s: String): Option[String] =
+      if (s.contains("\n") || s.contains("\r\n")) Some(s.trim) else None
+  }
+  private object Heading {
+    val headregexp = """^(\d+(\.\d+)*).*""".r
+    def unapply(s: String): Option[(Int, String)] = s.trim match {
+      case headregexp(level, _) => Some((level.split('.').length, s.trim))
+      case _ => None
+    }
+  }
+
+  /**
+    * Inspects the string and adds some simple html tags around
+    * paragraphs and headlines.
+    *
+    * Single lines with a previous and following empty line are
+    * recognized as headlines if they start with a numbering scheme
+    * like `1.2`.
+    */
+  def addMinimalHtml(text: String): String = {
+    val normed = "\n" + text.trim
+    val html = normed.split("\r\n\r\n|\n\n") map {
+      case Heading((level, line)) => s"<h$level>$line</h$level>"
+      case MultiLine(line) => s"<p>$line</p>"
+      case line => s"<p>$line</p>"
+    }
+    html.mkString("\n\n")
   }
 
   def isDefinedAt(p: Content) = pf.isDefinedAt(p)
