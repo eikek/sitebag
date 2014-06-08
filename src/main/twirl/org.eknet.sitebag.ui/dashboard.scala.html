@@ -2,46 +2,44 @@
 <div class="panel-group" id="sb-search-accordion">
   <div class="panel panel-default">
     <div class="panel-heading">
-      <h4 class="panel-title">
-        <a data-toggle="collapse" data-parent="#sb-search-accordion" href="#sb-search-collapseOne"> Filter Entries </a>
-      </h4>
+      <h4 class="panel-title"> Filter Entries </h4>
     </div>
-    <div id="sb-search-collapseOne" class="panel-collapse collapse in">
-      <div class="panel-body">
-      </div>
+    <div class="panel-body">
+      <form class="sb-search-form" role="form">
+        <div class="row">
+          <div class="form-group col-md-2">
+            <label for="archive-select" class="sr-only">Archived</label>
+            <select class="form-control" name="archived" id="archive-select">
+              <option value="all">All</option>
+              <option value="false" selected="selected">New</option>
+              <option value="true">Archived</option>
+            </select>
+          </div>
+          <div class="form-group col-md-10">
+            <label for="search-query" class="sr-only">Search</label>
+            <div class="input-group">
+              <input type="text" name="q" class="form-control" placeholder="Search" id="search-query"></input>
+              <a href="#" class="btn btn-primary input-group-addon" id="sb-search-button">Search</a>
+            </div>
+          </div>
+        </div>
+        <a class="btn btn-default" data-toggle="collapse" data-target="#sb-search-tags"> Show Tags </a>
+        <div id="sb-search-tags" class="collapse">
+        </div>
+      </form>
     </div>
   </div>
 </div>
 <div class="sb-articles">
 </div>
 <script id="sbtpl-search-form" type="x-tmpl-mustache">
-  <form class=" sb-search-form" role="form">
-    <div class="row">
-    <div class="form-group col-md-2">
-      <label for="archive-select" class="sr-only">Archived</label>
-      <select class="form-control" name="archived" id="archive-select">
-        <option value="all">All</option>
-        <option value="false" selected="selected">New</option>
-        <option value="true">Archived</option>
-      </select>
-    </div>
-    <div class="form-group col-md-10">
-      <label for="search-query" class="sr-only">Search</label>
-      <div class="input-group">
-        <input type="text" name="q" class="form-control" placeholder="Search" id="search-query"></input>
-        <a href="#" class="btn btn-primary input-group-addon" id="sb-search-button">Search</a>
-      </div>
-    </div>
-    </div>
-    <hr/>
-    {{#tags}}
-      <div class="checkbox col-sm-2">
-        <label>
-          <input type="checkbox" name="tag" value="{{name}}"> {{name}} <span class="small text-muted">({{count}})</span>
-        </label>
-      </div>
-    {{/tags}}
-  </form>
+  {{#tags}}
+  <div class="checkbox col-sm-2">
+    <label>
+      <input type="checkbox" name="tag" value="{{name}}"> {{name}} <span class="small text-muted">({{count}})</span>
+    </label>
+  </div>
+  {{/tags}}
 </script>
 <script id="sbtpl-entry" type="x-tmpl-mustache">
   <div class="col-sm-6 col-md-4 sb-entry" data-id="{{id}}">

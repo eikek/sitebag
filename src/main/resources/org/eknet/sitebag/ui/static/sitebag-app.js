@@ -172,7 +172,7 @@ function createEntrySearchForm(callback) {
 
   $.get(settings.apiPath("/tags"), function(data) {
     if (data.success) {
-      var cnt = $('#sb-search-accordion').find('.panel-body');
+      var cnt = $('#sb-search-tags');
       cnt.empty();
       var tags = [];
       data.value.tags.forEach(function(el, i) {
