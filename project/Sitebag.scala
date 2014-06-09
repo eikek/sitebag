@@ -4,7 +4,12 @@ import sbt.Keys._
 object Version {
   val scala = "2.10.4"
   val spray = "1.2.1"
+  val sprayJson = "1.2.6"
   val akka = "2.2.4"
+  val config = "1.2.1"
+  val lucene = "4.8.1"
+  val jsoup = "1.7.3"
+  val porter = "0.2.0"
 }
 
 object Deps {
@@ -22,9 +27,9 @@ object Deps {
     "com.typesafe.akka" %% "akka-testkit" % Version.akka % "test"
   )
 
-  val logback = Seq(
-    "org.slf4j" % "slf4j-api" % "1.7.5",
-    "ch.qos.logback" % "logback-classic" % "1.0.13" % "runtime",
+  val logging = Seq(
+    "org.slf4j" % "slf4j-api" % "1.7.6",
+    "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
     "com.typesafe.akka" %% "akka-slf4j" % Version.akka % "runtime"
   )
 
@@ -34,12 +39,12 @@ object Deps {
   )
 
   val sprayJson = Seq(
-    "io.spray" %% "spray-json" % "1.2.6"
+    "io.spray" %% "spray-json" % Version.sprayJson
   )
 
   val porter = Seq(
-    "org.eknet.porter" %% "porter-api" % "0.2.0",
-    "org.eknet.porter" %% "porter-app" % "0.2.0"
+    "org.eknet.porter" %% "porter-api" % Version.porter,
+    "org.eknet.porter" %% "porter-app" % Version.porter
   )
 
   val reactiveMongo = Seq(
@@ -52,22 +57,23 @@ object Deps {
       ExclusionRule("org.scala-lang", "scala-reflect")
     ),
     "org.reactivemongo" %% "reactivemongo-bson" % "0.10.0" intransitive(),
-    "org.apache.logging.log4j" % "log4j-core" % "2.0-rc1",
-    "org.apache.logging.log4j" % "log4j-api" % "2.0-rc1"
+    "org.apache.logging.log4j" % "log4j-api" % "2.0-rc1",
+    //instead of log4j-core, route to slf4j
+    "org.apache.logging.log4j" % "log4j-to-slf4j" % "2.0-rc1"
   )
 
   val jsoup = Seq(
-    "org.jsoup" % "jsoup" % "1.7.3"
+    "org.jsoup" % "jsoup" % Version.jsoup
   )
 
   val config = Seq(
-    "com.typesafe" % "config" %"1.2.0"
+    "com.typesafe" % "config" % Version.config
   )
 
   val lucene = Seq(
-    "org.apache.lucene" % "lucene-core" % "4.8.0",
-    "org.apache.lucene" % "lucene-analyzers-common" % "4.8.0",
-    "org.apache.lucene" % "lucene-queryparser" % "4.8.0"
+    "org.apache.lucene" % "lucene-core" % Version.lucene,
+    "org.apache.lucene" % "lucene-analyzers-common" % Version.lucene,
+    "org.apache.lucene" % "lucene-queryparser" % Version.lucene
   )
 }
 
@@ -84,12 +90,14 @@ object Sitebag extends sbt.Build {
       buildInfoKeys := Seq(name, version, scalaVersion, buildTimeKey, gitRevKey),
       buildInfoPackage := "org.eknet.sitebag",
       parallelExecution in Test := false,
-      javaOptions ++= Seq("-Dconfig.file=src/main/dist/etc/sitebag.conf", "-Dsitebag.dbname=sitebagplay", "-Dlogback.configurationFile=src/main/dist/etc/logback.xml"),
+      javaOptions ++= Seq("-Dconfig.file=src/main/dist/etc/sitebag.conf",
+                          "-Dsitebag.dbname=sitebagplay",
+                          "-Dlogback.configurationFile=src/main/dist/etc/logback.xml"),
       fork in run := true,
       Twirl.twirlImports := Seq("org.eknet.sitebag.ui._", "org.eknet.sitebag.rest.EntrySearch", "org.eknet.sitebag.model._"),
       libraryDependencies ++= Deps.spray ++ Deps.sprayJson ++
         Deps.akka ++ Deps.porter ++ Deps.reactiveMongo ++ Deps.jsoup ++
-        Deps.config ++ Deps.lucene ++ Deps.logback ++ Deps.testBasics
+        Deps.config ++ Deps.lucene ++ Deps.logging ++ Deps.testBasics
     )
   )
 
@@ -102,7 +110,9 @@ object Sitebag extends sbt.Build {
   
   override lazy val settings = super.settings ++ Seq(
     version := "0.2.0-SNAPSHOT",
-    resolvers ++= Seq("spray repo" at "http://repo.spray.io", "typesafe-releases" at "http://repo.typesafe.com/typesafe/releases", "eknet-maven2" at "https://eknet.org/maven2"),
+    resolvers ++= Seq("spray repo" at "http://repo.spray.io",
+                      "typesafe-releases" at "http://repo.typesafe.com/typesafe/releases",
+                      "eknet-maven2" at "https://eknet.org/maven2"),
     publishTo := Some("eknet-maven2" at "https://eknet.org/maven2"),
     credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
     pomIncludeRepository := { _ => false },
