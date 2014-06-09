@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration scan="true">
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <layout class="ch.qos.logback.classic.PatternLayout">
+      <pattern>%d{yyyy-MM-dd HH:mm:ss} %level [%thread{2}] %logger{36} - %msg%n</pattern>
+    </layout>
+    
+  </appender>
+
+  <!--Daily rolling file appender -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <File>logFile.log</File>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <FileNamePattern>log/sitebag.%d{yyyy-MM-dd}.log</FileNamePattern>
+    </rollingPolicy>
+
+    <layout class="ch.qos.logback.classic.PatternLayout">
+      <Pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</Pattern>
+    </layout>
+  </appender>
+
+  <!-- enable debugging:
+  <logger name="org.eknet.sitebag" level="debug"/>
+  -->
+
+  <root level="info">
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="FILE" />
+  </root>
+</configuration>

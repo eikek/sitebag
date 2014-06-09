@@ -84,7 +84,7 @@ object Sitebag extends sbt.Build {
       buildInfoKeys := Seq(name, version, scalaVersion, buildTimeKey, gitRevKey),
       buildInfoPackage := "org.eknet.sitebag",
       parallelExecution in Test := false,
-      javaOptions in run ++= Seq("-Dconfig.file=src/main/dist/etc/sitebag.conf", "-Dsitebag.dbname=sitebagplay"),
+      javaOptions ++= Seq("-Dconfig.file=src/main/dist/etc/sitebag.conf", "-Dsitebag.dbname=sitebagplay", "-Dlogback.configurationFile=src/main/dist/etc/logback.xml"),
       fork in run := true,
       Twirl.twirlImports := Seq("org.eknet.sitebag.ui._", "org.eknet.sitebag.rest.EntrySearch", "org.eknet.sitebag.model._"),
       libraryDependencies ++= Deps.spray ++ Deps.sprayJson ++
