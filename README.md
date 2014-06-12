@@ -167,7 +167,7 @@ via this api.
 Creates a secondary password that must be supplied with all non-admin
 urls.
 
-    GET|POST /<account>/newtoken
+    POST /<account>/newtoken
     -> JSON { token: "random" }
 
 
@@ -256,11 +256,12 @@ Adds or removes a tag from a page entry.
     POST /<account>/entry/<id>/[un]tag/ {  tags: "..." }
     -> JSON { success: true, message: "tags added/removed" }
 
-You can specify multiple `tag` parameters or one `tags` parameter
-with a comma separated list of tag names. Tag names must consist
-of alphanumeric characters and `-` and `_`. The actions will either
-add or remove the specified tags. If you want to do a update of a
-complete list use the `tags` endpoint:
+You can specify multiple `tag` parameters or one `tags` parameter with
+a comma separated list of tag names. Tag names must consist of
+alphanumeric characters and `-` and `_`.
+
+The actions will either add or remove the specified tags. If you want
+to do a update of a complete list use the `tags` endpoint:
 
     POST /<account>/entry/<id>/tags?tag=a&tag=b&tags=c,d,e
 
@@ -271,29 +272,61 @@ given list.
 
 Get a list of page entries as RSS feed or as JSON.
 
-    GET /<account>/entries/rss|json|html?tag=&tag=&tags=&archived&complete
-    -> xml rss, json or html
+    GET /<account>/entries/rss|json?<params>
+    -> xml rss or json. a list of entries 
 
-By default each entry is returned without its content. Only title, short-text
-and other properties are transferred, because this is usually enough. If the
-entries should be complete, specify this with the parameter `complete=true`.
+Parameters:
 
-The `archived` parameter controls whether to return archived page entries. Other
-filtering is possible via tags. Append one or more `tag` query parameter and/or
-one `tags` parameter. The latter may specify a comma separated list of tags.
-There is one known tag called "favourite" that returns all "starred" entries.
+    | Parameter | Meaning                                             |
+    |-----------+-----------------------------------------------------|
+    | tags, tag | provide a set of tags. only entries that are tagged |
+    |           | with all of them are returned. you can specify a    |
+    |           | combination of a comma-separataed list of tag names |
+    |           | with `tags=a,b,c` and multiple`tag=` values. if not |
+    |           | specified, tags are not checked.                    |
+    |           |                                                     |
+    | q         | a query string for fulltext search. default is the  |
+    |           | empty string                                        |
+    |           |                                                     |
+    | complete  | a boolean value to control whether to return full   |
+    |           | entries or only meta data. meta data is everything  |
+    |           | but not the full page content. default is `false`.  |
+    |           |                                                     |
+    | archived  | a boolean value. if `true` return archived entries  |
+    |           | only. If `false` return only entries that are not   |
+    |           | archived. if not specified, all (archived and not   |
+    |           | archived) entries are returned.                     |
+    |           |                                                     |
+    | size      | the page size. A number that controls how many      |
+    |           | entries to return for eacht request.                |
+    |           | default is 24, but this may change. it is           |
+    |           | recommended to always specify it.                   |
+    |           |                                                     |
+    | num       | the page number. A positive number specifying the   |
+    |           | page index to return. Defaults to 1.                |
+
+By default each entry is returned without its content. Only title,
+short-text and other properties are transferred, because this is
+usually enough for a listing. If the entries should be complete,
+specify this with the parameter `complete=true`.
+
+There is one known tag called "favourite" that returns all "starred"
+entries.
 
 
 #### list all tags
 
-Returns a list of used tags or feed urls.
+Returns a list of used tags.
 
 list tag names:
 
     GET /<account>/tags?filter=
-    -> JSON { tags: [] }
+    -> JSON { tags: [], cloud: { "tagname": usage-count } }
 
-The `filter` parameter is a regex string like `fav.*rite`
+The `filter` parameter is a regex string like `fav.*rite`. The
+returned `value` is a json object that contains a `tags` array with
+all tag names and a `cloud` object that is a mapping from a tagname to
+its usage count (how many entries have this tag).
 
 To get the tags of one entry, use
 
@@ -306,8 +339,8 @@ There is no filter possible.
 Binary files are also stored in sitebag. Currently only images are supported. You can get
 them using this url
 
-    /api/<account>/bin/<id> (GET) binary files
-    /bin/?url=http://original-image-url
+    /bin/<id> (GET) binary files
+    /bin?url=http://original-image-url
 
 Note that access to these are *not* protected. The `<id>` is the binary id, which is the
 md5 checksum of the content.
