@@ -131,16 +131,18 @@ In short, here are the relevant url endpoints:
     /api/<account> (PUT ?newaccount=&newpassword=)
     /api/<account>/newtoken
     /api/<account>/changepassword?newpassword=
-    /api/<account>/entry (PUT|GET?id=)
+    /api/<account>/entry 
     /api/<account>/entry/<id> (GET|DELETE|POST?delete=true)
     /api/<account>/entry/<id>/togglearchived
     /api/<account>/entry/<id>/setarchived ?flag=true|false
     /api/<account>/entry/<id>/tag ?tag=&tag=|tags=a,b,c
     /api/<account>/entry/<id>/untag ?tag=&tag=|tags=a,b,c
+    /api/<account>/entry/<id>/tags ?tag=&tag=|tags=a,b,c
     /api/<account>/tags ?filter=pro.*ing
-    /api/<account>/entries/rss ?tag=&tag=&tags=a,b,c&archived | q= (lucene)
+    /api/<account>/entries/rss ?tag=&tag=&tags=a,b,c&archived&q="" (lucene)
     /api/<account>/entries/json   -"-
-    /api/<account>/bin/<id> (GET) binary files
+    /bin/<id> (GET) binary files
+    /bin?url= get binary files
 
 More details to each one can be found below.
 
@@ -231,7 +233,6 @@ contains the new archived value.
 
 Fetch a page entry from sitebag by its id.
 
-    GET /<account>/entry?id=<hash>
     GET /<account>/entry/<id>
     > JSON{ hash, title, url, content, shortText, archived, created, tags: [] }
 
@@ -242,10 +243,10 @@ You can also get the cached original content with
 This returns the complete original document that was fetched at
 the time this entry was created.
 
-If you just like to get the meta data (uri, archived, tags and
-created date), then use
+If you just like to get the meta data (everything but `content`), then
+use:
 
-    GET /<account>/entry/<id>?meta
+    GET /<account>/entry/<id>?complete=false
 
 
 #### tag / untag a site entry
@@ -279,18 +280,14 @@ Parameters:
 
     | Parameter | Meaning                                             |
     |-----------+-----------------------------------------------------|
+    | q         | a query string for fulltext search. default is the  |
+    |           | empty string (see below for more details).          |
+    |           |                                                     |
     | tags, tag | provide a set of tags. only entries that are tagged |
     |           | with all of them are returned. you can specify a    |
     |           | combination of a comma-separataed list of tag names |
     |           | with `tags=a,b,c` and multiple`tag=` values. if not |
     |           | specified, tags are not checked.                    |
-    |           |                                                     |
-    | q         | a query string for fulltext search. default is the  |
-    |           | empty string                                        |
-    |           |                                                     |
-    | complete  | a boolean value to control whether to return full   |
-    |           | entries or only meta data. meta data is everything  |
-    |           | but not the full page content. default is `false`.  |
     |           |                                                     |
     | archived  | a boolean value. if `true` return archived entries  |
     |           | only. If `false` return only entries that are not   |
@@ -304,6 +301,11 @@ Parameters:
     |           |                                                     |
     | num       | the page number. A positive number specifying the   |
     |           | page index to return. Defaults to 1.                |
+    |           |                                                     |
+    | complete  | a boolean value to control whether to return full   |
+    |           | entries or only meta data. meta data is everything  |
+    |           | but not the full page content. default is `false`.  |
+    
 
 By default each entry is returned without its content. Only title,
 short-text and other properties are transferred, because this is
@@ -312,6 +314,37 @@ specify this with the parameter `complete=true`.
 
 There is one known tag called "favourite" that returns all "starred"
 entries.
+
+The query value for the `q` parameter is a
+[lucene query](http://www.lucenetutorial.com/lucene-query-syntax.html). By
+default, the title and content of a page entry is searched, but the
+query can be customized to search other fields, too. The index has the
+following fields:
+
+* `_id` the entry id
+* `title` the title of an entry
+* `content` the full main content of the page and the title, this is
+  used if not specified otherwise
+* `archived` the archived flag 
+* `tag` a tag name associated to the entry (possible many of them)
+* `created` the created timestamp in milliseconds
+* `date` the create date of form `yyyymmdd`, like `20140523`
+* `url` the complete url of the original site
+* `host` the host part of the url
+
+If the query string contains fields (like `archived` or `tag` fields)
+that are also provided by the search form, the query has precedence. 
+
+So to find all sites with _icecream_ that are archived and were
+downloaded from _myrecipes.org_, the query string could be
+
+    archived:true host:*.myrecipes.org icecream
+
+If you want to search for multiple tags, you need to specify it
+multiple times, like `tag:favourite tag:clojure archived:true`.
+
+The index is created if it does not exist. Thus, to re-create it,
+simply remove the directory which is at `var/luceneVV`.
 
 
 #### list all tags
@@ -328,11 +361,9 @@ returned `value` is a json object that contains a `tags` array with
 all tag names and a `cloud` object that is a mapping from a tagname to
 its usage count (how many entries have this tag).
 
-To get the tags of one entry, use
+To get the tags of one entry, retrieve the meta data it (see "retrieve
+a site entry").
 
-    GET /<account>/<id>/tags
-
-There is no filter possible.
 
 #### Binary files
 
@@ -344,7 +375,6 @@ them using this url
 
 Note that access to these are *not* protected. The `<id>` is the binary id, which is the
 md5 checksum of the content.
-
 
 
 ## Configuration and more Detail

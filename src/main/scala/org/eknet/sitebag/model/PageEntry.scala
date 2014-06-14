@@ -24,4 +24,4 @@ object PageEntry {
   def makeId(url: Uri): String = makeId(url.toString())
 }
 case class FullPageEntry(entry: PageEntry, page: Content)
-case class PageEntryMeta(url: Uri, archived: Boolean, created: DateTime, tags: Set[Tag])
+

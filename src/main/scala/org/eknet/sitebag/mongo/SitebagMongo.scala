@@ -167,13 +167,13 @@ class SitebagMongo(driver: MongoDriver, url: String, dbName: String) {
     } yield Success(p.map(e => e.copy(tags = t.get(entryId).getOrElse(Set.empty))))
   }
 
-  def getEntryMeta(account: Ident, entryId: String)(implicit ec: ExecutionContext): Future[Result[PageEntryMeta]] = {
+  def getEntryMeta(account: Ident, entryId: String)(implicit ec: ExecutionContext): Future[Result[PageEntry]] = {
     val page = entries(account).find(Id(entryId)).one[PageEntryMetadata]
     val tag  = getTags(account, Set(entryId))
     for {
       p <- page
       t <- tag
-    } yield Success(p.map(md => PageEntryMeta(md.uri, md.archived, md.created, t.get(entryId).getOrElse(Set.empty))))
+    } yield Success(p.map(md => PageEntry(md.title, md.uri, "", md.shortText, md.archived, md.created, t.get(entryId).getOrElse(Set.empty))))
   }
 
   def addEntry(account: Ident, entry: FullPageEntry)(implicit ec: ExecutionContext): Future[Ack] = {

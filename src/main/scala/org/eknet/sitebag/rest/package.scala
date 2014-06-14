@@ -58,8 +58,8 @@ package object rest {
         case "false" => Some(false)
         case _ => None
       }
-      val pnum = Try(fmap("num").toInt).toOption
-      val psize = Try(fmap("size").toInt).toOption
+      val pnum = Try(fmap("num").toInt).toOption.filter(_ > 0)
+      val psize = Try(fmap("size").toInt).toOption.filter(_ > 0)
       val page = pnum.map(Page(_, psize))
       val query = fmap.get("q").getOrElse("")
       val complete = fmap.get("complete").map(_.toBoolean).getOrElse(false)

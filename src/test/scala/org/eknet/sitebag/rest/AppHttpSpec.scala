@@ -65,15 +65,6 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
         }
         true
       }
-      Get("/entry?id="+DummyStoreActor.existingEntry.id) ~> as("mary", "abc") ~> route("mary") ~> check {
-        responseAs[Result[PageEntry]] match {
-          case Success(Some(e), _) =>
-            assert(e.title === entry.title)
-            assert(e.content === entry.content)
-          case x => sys.error("Invalid response: "+ x)
-        }
-        true
-      }
     }
     "delete a page entry" in {
       Delete("/entry/"+ entry.id) ~> as("mary") ~> route("mary") ~> check {

@@ -124,7 +124,6 @@ trait JsonProtocol extends ModelJsonProtocol {
 
   implicit val taglistFormat = jsonFormat2(TagList)
   implicit val deleteActionFormat = jsonFormat1(DeleteAction)
-  implicit val pageEntryMetaFormat = jsonFormat4(PageEntryMeta)
   implicit val reextractActionFormat = jsonFormat1(ReextractAction)
 }
 

@@ -44,7 +44,7 @@ package object search {
         doc += tag.name.asField("tag").indexed.stored.notTokenized
       }
       doc += value.created.clicks.asField("created").indexed.stored.notTokenized
-      val date = value.created.year+"/"+ value.created.month +"/"+ value.created.day
+      val date = value.created.year + value.created.month + value.created.day
       doc += date.asField("date").indexed.notStored.notTokenized
       doc += value.url.toString().asField("url").indexed.stored.notTokenized
       doc += value.url.authority.host.address.asField("host").indexed.notStored.notTokenized
