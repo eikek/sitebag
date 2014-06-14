@@ -13,6 +13,9 @@ There is a basic web ui provided, too.
 
 ## Dependencies
 
+Sitebag is an [akka](http://akka.io) application. Other dependencies
+are:
+
 * [jsoup](https://github.com/jhy/jsoup/) is used for html content
   extraction
 * [spray](http://spray.io) provides the http stack
@@ -20,7 +23,7 @@ There is a basic web ui provided, too.
   mongo database and
 * [porter](https://github.com/eikek/porter) provides authentication
   and user management
-* full text searching is done by [lucene](http://lucene.apache.org/)
+* full text search is done via [lucene](http://lucene.apache.org/)
 
 The ui templates are processed by [twirl](https://github.com/spray/twirl)
 and [bootstrap](http://getbootstrap.com) is used to provide a responsive
