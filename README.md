@@ -11,6 +11,10 @@ nice android and iOS clients as well as their browser extension with sitebag.
 
 There is a basic web ui provided, too.
 
+There is a demo installation at [heroku](http://heroku.com) so you can
+try it out easily. Goto <http://sitebag.herokuapp.com/ui> and login
+with either `demo`, `demo1` or `demo2` (use the username as password).
+
 ## Dependencies
 
 Sitebag is an [akka](http://akka.io) application. Other dependencies
