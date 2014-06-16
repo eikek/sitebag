@@ -80,11 +80,12 @@ object Deps {
 object Sitebag extends sbt.Build {
   import sbtbuildinfo.Plugin._
   import twirl.sbt.TwirlPlugin._
+  import com.typesafe.sbt.SbtStartScript
 
   lazy val module = Project(
     id = "sitebag",
     base = file("."),
-    settings = Project.defaultSettings ++ buildInfoSettings ++ Twirl.settings ++ Distribution.distSettings ++ Seq(
+    settings = Project.defaultSettings ++  SbtStartScript.startScriptForClassesSettings ++ buildInfoSettings ++ Twirl.settings ++ Distribution.distSettings ++ Seq(
       name := "sitebag",
       sourceGenerators in Compile <+= buildInfo,
       buildInfoKeys := Seq(name, version, scalaVersion, buildTimeKey, gitRevKey),
@@ -106,7 +107,8 @@ object Sitebag extends sbt.Build {
     System.currentTimeMillis
   }
   lazy val gitRevKey = BuildInfoKey.action("revision") {
-    Process("git rev-parse HEAD").lines.head
+    //Process("git rev-parse HEAD").lines.head
+    "(master)"
   }
   
   override lazy val settings = super.settings ++ Seq(
