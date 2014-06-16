@@ -244,10 +244,10 @@ function bindEntryActions(callback) {
     var tagin = $('#sb-tag-input').val("");
     var select = $('#sb-tag-select').empty();
     var id = $(this).parents("[data-id]").attr('data-id');
-    var p1 = $.get(settings.apiPath('/entry/'+id+'/tags'));
+    var p1 = $.get(settings.apiPath('/entry/'+id+'?complete=false'));
     var p2 = $.get(settings.apiPath('/tags'));
     $.when(p1, p2).done(function(pageTags, allTags) {
-      pageTags[0].value.forEach(function(el, i) {
+      pageTags[0].value.tags.forEach(function(el, i) {
         select.append('<option value="'+el+'">'+el+'</option>');
         selectedTags[el] = true;
       });
