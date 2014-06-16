@@ -30,10 +30,14 @@ if [ -r etc/logback.xml ]; then
   LOGBACKOPT="-Dlogback.configurationFile=`pwd`/etc/logback.xml"
 fi
 
+#uncomment the next line to create an admin account
+ADMINACC=
+#ADMINACC=-Dsitebag.create-admin-account=true
+
 mkdir temp 2> /dev/null
 
 JAVA_OPTS="-server -Xmx512M -Djava.awt.headless=true \
- -Djava.io.tmpdir=`pwd`/temp $LOGBACKOPT $CONFOPT"
+ -Djava.io.tmpdir=`pwd`/temp $LOGBACKOPT $CONFOPT $ADMINACC"
 
 JCLASSPATH=${SCALALIB}:${CPATH#?}:plugins/*
 java ${JAVA_OPTS} -Xbootclasspath/a:${JCLASSPATH} -jar lib/sitebag.jar

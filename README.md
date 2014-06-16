@@ -57,7 +57,16 @@ you'll need to update this file.
 For linux, simply execute the script `bin/start.sh`. There is no windows
 `.bat` version yet.
 
+You can pass the option `-Dsitebag.create-admin-account=true` to have
+sitebag create an admin account (you must change the `bin/start.sh`
+script). This is useful when starting with an empty database. Sitebag
+creates an account with username "admin" and password "admin". This
+allows you to skip the next step "Add user account".
+
 #### 4. Add user account
+
+This is not needed, if you enable the option
+`-Dsitebag.create-admin-account=true` in `bin/start.sh`.
 
 You'll need to setup an account with sitebag. The very first account
 cannot be setup via the web interface. Please use the following steps to

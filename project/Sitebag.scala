@@ -92,6 +92,7 @@ object Sitebag extends sbt.Build {
       parallelExecution in Test := false,
       javaOptions ++= Seq("-Dconfig.file=src/main/dist/etc/sitebag.conf",
                           "-Dsitebag.dbname=sitebagplay",
+                          "-Dsitebag.create-admin-account=true",
                           "-Dlogback.configurationFile=src/main/dist/etc/logback.xml"),
       fork in run := true,
       Twirl.twirlImports := Seq("org.eknet.sitebag.ui._", "org.eknet.sitebag.rest.EntrySearch", "org.eknet.sitebag.model._"),

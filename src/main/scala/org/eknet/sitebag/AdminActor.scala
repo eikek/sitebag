@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{Props, ActorRef, ActorLogging, Actor}
 import akka.pattern.pipe
 import akka.util.Timeout
-import porter.model.{Ident, Group, Password, Account}
+import porter.model.{Ident, Group, Password, Account, Realm}
 import porter.client.messages._
 import porter.util._
 import org.eknet.sitebag.model._
@@ -22,6 +22,15 @@ class AdminActor(reextrRef: ActorRef, porter: PorterContext, mongo: SitebagMongo
 
   private implicit val timeout = Timeout(2, TimeUnit.SECONDS)
   private implicit val duration = timeout.duration
+
+  override def preStart() {
+    if (settings.createAdminAccount) {
+      log.info("Create admin account ...")
+      val f = createAdminAccount
+      f onSuccess { case result ⇒ log.info(result.toString) }
+      f onFailure { case failed ⇒ log.error(failed, "Error creating admin account") }
+    }
+  }
 
   def removeSitebagAccount(account: Ident) =
     if (settings.porterModeIsEmbedded) {
@@ -86,5 +95,28 @@ class AdminActor(reextrRef: ActorRef, porter: PorterContext, mongo: SitebagMongo
     case OperationFinished(true, _) => Success(msg)
     case OperationFinished(false, error) => Failure("", error)
     case _ => Failure(s"Unknown error for '$msg'.")
+  }
+
+  private def createAdminAccount: Future[Result[String]] = {
+    val realm = Realm("default", "Default Realm")
+    val group = Group("admin", Map.empty, Set(s"sitebag:*"))
+    val token = Token.random
+    val acc = Account(
+      name = "admin",
+      groups = Set(group.name),
+      secrets = Password("admin") :: token.toSecret :: Nil
+    ).updatedProps(UserInfo.token.set(token))
+
+    def makeAccount: Account => Account = _.updatedGroups(_ + group.name).updatedProps { props =>
+      if (UserInfo.token.get(props).isDefined) props
+      else UserInfo.token.set(token).apply(props)
+    }
+
+    val f = for {
+      rr ← porter.updateRealm(realm)
+      cg ← porter.updateGroup(group.name, _.updatedRules(_ + s"sitebag:${acc.name.name}:*")).recoverWith({ case _ => porter.updateGroup(group) })
+      ra ← porter.createNewAccount(acc)
+    } yield ra
+    f map { makeResult("Admin user created.") } 
   }
 }

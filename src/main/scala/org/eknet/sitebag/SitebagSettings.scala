@@ -30,6 +30,7 @@ trait SitebagSettings {
   val dbName = config.getString("dbname")
   def mongoDriver: MongoDriver
 
+  val createAdminAccount = config.getBoolean("create-admin-account")
   val porterMode: String = config.getString("porter.mode")
   val porterModeIsEmbedded = porterMode == "embedded"
   val porterRealm: Ident = Ident(config.getString("porter.realm"))

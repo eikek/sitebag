@@ -42,7 +42,7 @@ object Main {
 class MainActor extends Actor with ActorLogging {
   val listener = context.actorOf(SitebagHttpHandler(), "http-listener")
 
-  implicit val s = context.system
+  import context.system
 
   def receive = {
     case Http.Bound(address) =>
