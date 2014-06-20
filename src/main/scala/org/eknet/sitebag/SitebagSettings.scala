@@ -105,7 +105,8 @@ class SitebagSettingsExt(system: ExtendedActorSystem) extends Extension with Sit
   private def makeExtractor: Extractor = {
     import collection.JavaConverters._
     val maker = makeInstance[Extractor](system.dynamicAccess)_ andThen (_.get)
-    Extractor.combine(config.getConfigList("extractors").asScala.map(c => maker(c)) :+ Extractor.errorFallback)
+    val fallback = if (config.getBoolean("always-save-document")) Extractor.noextraction else Extractor.errorFallback
+    Extractor.combine(config.getConfigList("extractors").asScala.map(c => maker(c)) :+ fallback)
   }
 
   private lazy val _porterRef = {

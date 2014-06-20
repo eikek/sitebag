@@ -1,0 +1,12 @@
+@(content: org.eknet.sitebag.content.Content)
+@import spray.http.ContentTypes
+@import ContentTypes._
+
+<div>
+  <h2>No content extractor for <em>@{if (content.uri.path.isEmpty) content.uri.toString else content.uri.path.reverse.head.toString}</em> </h2>
+  
+  <p>The document at <a href="@(content.uri)">@content.uri</a> is of type
+  <code>@{content.contentType.getOrElse(ContentTypes.`application/octet-stream`)}</code>.</p>
+
+  <p>Unfortunately, Sitebag was not able to extract textual content from this document.</p>
+</div>
