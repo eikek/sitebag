@@ -325,12 +325,6 @@ function loadEntries(q, p) {
   var page = p || 1;
   query = query + "&size="+ pageSize +"&num="+ page;
   var displayAll = !form.find('select[name="archived"]').val() || form.find('select[name="archived"]').val() === "all";
-  function appendRow(cnt, row) {
-    cnt.append($("<div/>", {
-      class: "row",
-      html: row
-    }));
-  }
   var spinTarget = $('.sb-articles').parent();
   spin(spinTarget);
   $.getJSON(settings.apiPath("/entries/json"), query, function (response) {
@@ -346,7 +340,8 @@ function loadEntries(q, p) {
     }
     else {
       var cnt = $('.sb-articles').attr("data-id", page);
-      var row = "";
+      var pageElems = $("<div/>", { "data-id": page });
+      cnt.append(pageElems);
       response.value.forEach(function (entry, entryIndex) {
         if (!entry.shortText) {
           entry.shortText = "...";
@@ -364,16 +359,26 @@ function loadEntries(q, p) {
             archived: entry.archived
           })
         });
-
-        row += render('sbtpl-entry', context);
-        if ((entryIndex +1) % 3 == 0) {
-          appendRow(cnt, row);
-          row = "";
-        }
+        pageElems.append(render('sbtpl-entry', context));
       });
-      if (row) {
-        appendRow(cnt, row);
-      }
+      pageElems.find('.sb-entry').hover(
+          function(ev) { $(this).removeClass('panel-default').addClass('panel-primary');  },
+          function(ev) { $(this).removeClass('panel-primary').addClass('panel-default'); }
+      );
+      pageElems.find('.sb-entry').click(function(ev) {
+          var id = $(this).attr("data-id");
+          var tg = $(this).find('.panel-body');
+          spin(tg);
+          if (id) {
+              window.location = settings.uiPath("/entry/"+id);
+              stopSpin(tg);
+          } else {
+              stopSpin(tg);
+              feedback({ success: false, message: 'Unable to open this entry. No entry id found.' });
+          }
+          ev.preventDefault();
+          return false;
+      });
       //bind actions
       bindEntryActions(function() {
         createEntrySearchForm();

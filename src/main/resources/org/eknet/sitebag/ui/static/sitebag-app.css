@@ -20,6 +20,11 @@ html {
     width: 100%;
     height: 30px;
 }
+
+.sb-entry {
+    cursor: pointer;
+}
+
 .sb-entry-actions-view-container {
     width: 100%;
     bottom: -40px;

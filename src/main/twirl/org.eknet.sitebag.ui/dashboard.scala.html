@@ -42,26 +42,21 @@
   {{/tags}}
 </script>
 <script id="sbtpl-entry" type="x-tmpl-mustache">
-  <div class="col-sm-6 col-md-4 sb-entry" data-id="{{id}}">
-    <div class="thumbnail">
-      <div class="caption">
-        <h4 {{#mute}}class="text-muted"{{/mute}}>{{title}}</h4>
-        <p>{{shortText}}</p>
-        <p>
-          <span>
-            <span class="glyphicon glyphicon-tags"></span>&nbsp; <small>{{tagString}}</small>
-          </span>
-        </p>
-        <p>
-          <a href="{{url}}">{{urlHost}}</a>
-          <span class="pull-right small">{{createdMonth}}/{{createdYear}}</span>
-        </p>
-        <div>
-          <a href="@(settings.base.pathPrefix)ui/entry/{{id}}" class="btn btn-primary" role="button">Read on</a>
-          <span class="pull-right sb-entry-actions">
-            {{&actions}}
-          </span>
-        </div>
+  <div class="sb-entry panel panel-default" data-id="{{id}}">
+    <div class="panel-body">
+      <h4 {{#mute}}class="text-muted"{{/mute}}>{{title}}</h4>
+      <p>{{shortText}}</p>
+      <p>
+        <span class="glyphicon glyphicon-tags"></span>&nbsp; <small>{{tagString}}</small>
+      </p>
+      <p>
+        <a href="{{url}}">{{urlHost}}</a>
+        <span class="pull-right small">{{createdMonth}}/{{createdYear}}</span>
+      </p>
+      <div class="sb-entry-actions-cnt">
+        <span class="pull-right sb-entry-actions">
+          {{&actions}}
+        </span>
       </div>
     </div>
   </div>
