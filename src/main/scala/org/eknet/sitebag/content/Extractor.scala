@@ -3,6 +3,7 @@ package org.eknet.sitebag.content
 import org.eknet.sitebag._
 import org.eknet.sitebag.utils._
 import scala.util.Try
+import spray.http.ContentTypes
 import spray.http.{ ContentType, MediaTypes, Uri }
 
 /**
@@ -40,6 +41,23 @@ object Extractor {
   val errorFallback = Extractor {
     case content =>
       sys.error("No content extractor available.")
+  }
+
+  /**
+    * An extractor that generates a html message, that it was not able
+    * to extract anything. Use this to save the original document anyways,
+    * even without having any extracted content.
+    */
+  val noextraction = Extractor {
+    case content ⇒
+      import org.eknet.sitebag.ui.html
+
+      val ct = content.contentType.getOrElse(ContentTypes.`application/octet-stream`)
+      val short = s"No content extractor for $ct data available."
+      val file = if (content.uri.path.isEmpty) content.uri.toString else content.uri.path.reverse.head.toString
+      val title = s"No content extractor for $file"
+      val text = html.nocontent(content).body
+      ExtractedContent(content, title, text, short, None, Set.empty)
   }
 }
 

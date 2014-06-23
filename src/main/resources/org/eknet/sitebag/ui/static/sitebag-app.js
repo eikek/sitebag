@@ -294,7 +294,7 @@ function bindEntryActions(callback) {
       $('#sb-edit-tags-modal').find('.sb-confirm-btn').click(function(b) {
         var tags = Object.keys(selectedTags);
         if (tags.length === 0) {
-          postJson(settings.apiPath('/entry/'+id+'/untag'), { "tags": pageTags[0].value }, function(data) {
+          postJson(settings.apiPath('/entry/'+id+'/untag'), { "tags": pageTags[0].value.tags }, function(data) {
             feedback(data);
             if (callback) {
               callback("untagall", id);
