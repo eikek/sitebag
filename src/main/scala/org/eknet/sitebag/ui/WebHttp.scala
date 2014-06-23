@@ -25,14 +25,14 @@ class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorR
   def enabled: Route = {
     authc { userInfo =>
       pathEndOrSingleSlash {
-        render(userInfo, html.dashboard(webSettings))
+        render(userInfo, "Search", html.dashboard(webSettings))
       } ~
       path("conf") {
-        render(userInfo, html.configuration(userInfo, webSettings))
+        render(userInfo, "Configuration", html.configuration(userInfo, webSettings))
       } ~
       path("entry" / Segment) { id =>
         getEntry(store, GetEntry(userInfo.name, id)) { entry =>
-          render(userInfo, html.entryview(entry, webSettings))
+          render(userInfo, entry.title, html.entryview(entry, webSettings))
         }
       } ~
       path("entry" / Segment / "cache") { id =>
@@ -56,7 +56,7 @@ class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorR
           }
         }
       } ~
-      render(userInfo, html.notfound())
+      render(userInfo, "Not found", html.notfound())
     }
   }
 }
