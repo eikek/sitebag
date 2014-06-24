@@ -9,10 +9,6 @@ package object rest {
 
   case class RestContext(authId: Ident, subject: Ident, token: Option[Token])
 
-  final case class TokenCredentials(username: String, token: String) extends PasswordCredentials {
-    def password = token
-    def accountName = username
-  }
   final case class UserPassCredentials(username: String, password: String) extends PasswordCredentials {
     def accountName = username
   }
@@ -21,7 +17,7 @@ package object rest {
   type Fields = Seq[(String, String)]
   trait FieldsDeserialize[A] { def fromFields(fields: Fields): A }
 
-  case class NewPassword(password: String)
+  case class NewPassword(newpassword: String)
   case class RAdd(url: Uri, title: Option[String], tags: Set[Tag])
   case class Flag(flag: Boolean)
   case class TagInput(tags: Set[Tag]){
@@ -47,7 +43,7 @@ package object rest {
       ListEntries(subject, tag.tags, archived, query, page.getOrElse(Page(1, None)), complete)
     def withTags(tag: Tag, tags: Tag*) = copy(tag = TagInput((tag +: tags).toSet))
   }
-  object EntrySearch extends FieldsDeserialize[EntrySearch]  {
+  object EntrySearch extends FieldsDeserialize[EntrySearch] {
     val allNew = EntrySearch(TagInput.empty, Some(false), "", None, true)
     val empty = EntrySearch(TagInput(Set.empty), None, "", None, false)
     def fromFields(fields: Fields): EntrySearch = {

@@ -254,7 +254,7 @@
         self.parent().find('[type="password"]').parent().addClass('has-error');
       } else {
         spin(self.parent());
-        postJson(settings.userPath(username), { "password": pw1 }, function (data) {
+        postJson(settings.userPath(username), { "newpassword": pw1 }, function (data) {
           stopSpin(self.parent());
           feedback(data);
           self.parent().find('input').val("");

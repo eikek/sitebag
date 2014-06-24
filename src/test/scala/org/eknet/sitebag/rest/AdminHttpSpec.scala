@@ -1,5 +1,6 @@
 package org.eknet.sitebag.rest
 
+import porter.model.Ident
 import scala.concurrent._
 import spray.testkit.Specs2RouteTest
 import spray.routing.{AuthorizationFailedRejection, HttpService}
@@ -20,6 +21,7 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
   implicit val timeout = Timeout(3000, TimeUnit.MILLISECONDS)
   import JsonProtocol._
   import SprayJsonSupport._
+  import commons.withUser
 
   private val settings = SitebagSettings(system)
   private val mongo = SitebagMongo(settings)
@@ -34,10 +36,11 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
   def route(subject: String) =
     new AdminHttp(settings, adminActor, actorRefFactory.dispatcher, timeout).route(subject, settings.porter)
 
-  def as(username: String, password: String = "test") = addCredentials(BasicHttpCredentials(username, password))
+  def as(username: Ident, password: String = "test") = Map("username" → username.name, "password" → password)
+  def asSuperuser = as(PorterStore.superuser.name, PorterStore.password)
+
   def asNobody = as("nobody")
   def asAdmin = as("admin")
-  def asSuperuser = as("superuser")
 
   "The admin http service" should {
     doBefore { dropDb() }
@@ -45,19 +48,19 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
     "create new user with success for admins" in {
       val name1 = commons.randomWord
       val name2 = commons.randomWord
-      Put("/", NewPassword("superword")) ~> asSuperuser ~> route(name1) ~> check {
+      Put("/", withUser("admin", "test", NewPassword("superword"))) ~> route(name1) ~> check {
         println(responseAs[String])
         status === StatusCodes.OK
         responseAs[Ack].isSuccess === true
       }
-      Put("/", NewPassword("superword").toFormData) ~> asSuperuser ~> route(name2) ~> check {
+      Put("/", NewPassword("superword").toFormData.as("admin", "test")) ~> route(name2) ~> check {
         status === StatusCodes.OK
         responseAs[Ack].isSuccess === true
       }
     }
 
     "generate new tokens for existing user" in {
-      Post("/newtoken") ~> asSuperuser ~> route("superuser") ~> check {
+      Post("/newtoken", asSuperuser) ~> route("superuser") ~> check {
         status === StatusCodes.OK
         responseAs[StringResult] match {
           case Success(Some(token), _) => assert(token.length > 0)
@@ -67,14 +70,15 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
       }
     }
     "deny generating tokens for unauthorized user" in {
-      Post("/newtoken") ~> asNobody ~> route("superuser") ~> check {
+      Post("/newtoken", asNobody) ~> route("superuser") ~> check {
         rejection === AuthorizationFailedRejection
       }
     }
 
     "be able to change own password" in {
-      Post("/changepassword", NewPassword("xyz123")) ~> as("mary") ~> route("mary") ~> check {
+      Post("/changepassword", Map("username" → "mary", "password" → "test", "newpassword" → "xyz123")) ~> route("mary") ~> check {
         status === StatusCodes.OK
+        response.headers.count(_ is "set-cookie") === 1
         responseAs[Ack] match {
           case Success(_, _) => true
           case Failure(msg, error) =>
@@ -92,13 +96,13 @@ class AdminHttpSpec extends Specification with Specs2RouteTest with HttpService 
         }
       }
       def checkDeleteMaryAs(name: String) = {
-        Post("/", DeleteAction(true)) ~> as(name) ~> route("mary") ~> check {
+        Post("/", withUser(name, "test", DeleteAction(true))) ~> route("mary") ~> check {
           checkResponse
         }
-        Post("/", DeleteAction(true).toFormData) ~> as(name) ~> route("mary") ~> check {
+        Post("/", DeleteAction(true).toFormData.as(name, "test")) ~> route("mary") ~> check {
           checkResponse
         }
-        Delete("/") ~> as(name) ~> route("mary") ~> check {
+        Delete("/", as(name)) ~> route("mary") ~> check {
           checkResponse
         }
       }

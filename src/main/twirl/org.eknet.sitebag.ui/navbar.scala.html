@@ -29,7 +29,7 @@
       </button>
       <a class="navbar-brand" href="@(settings.base.pathPrefix)ui/">@settings.brandName</a>
     </div>
-
+@if(user.nonEmpty) {
     <!-- Collect the nav links, forms, and other content for toggling -->
     <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
       <ul class="nav navbar-nav">
@@ -48,13 +48,14 @@
           </a>
           <ul class="dropdown-menu">
             <li><a href="#" class="sb-themes-btn">Themes</a></li>
-            <li><a href="javascript:alert('You have to close the whole browser to log out (not just the tab!). Sorry, does not work yet another way.')">Logout</a></li>
+            <li><a href="#" class="sb-logout-btn">Logout</a></li>
           </ul>
         </li>
       </ul>
     </div>
     <!-- /.navbar-collapse -->
   </div>
+}
   <!-- /.container-fluid -->
 </nav>
 
@@ -70,3 +71,4 @@
     </a>
   </div>
 </script>
+

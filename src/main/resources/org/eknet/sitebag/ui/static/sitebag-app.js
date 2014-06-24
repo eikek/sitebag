@@ -420,3 +420,20 @@ $(function() {
     }
   });
 });
+
+// ---- logout link
+
+$(function() {
+  $('.sb-logout-btn').click(function(ev) {
+    $.post(settings.apiPath("/logout"), {}, function(result) {
+      feedback(result);
+      if (result.success) {
+        window.location = settings.uiPath();
+      }
+    });    
+
+    ev.preventDefault();
+    return false;
+  });
+});
+

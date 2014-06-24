@@ -1,39 +1,38 @@
 package org.eknet.sitebag.rest
 
-import spray.routing.{Directives, Route}
-import akka.event.Logging
-import akka.actor.{ActorRefFactory, ActorRef}
-import scala.concurrent.ExecutionContext
-import akka.util.Timeout
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.pattern.ask
+import akka.util.Timeout
 import org.eknet.sitebag._
-import spray.httpx.encoding.Gzip
-import org.eknet.sitebag.model.{Page, Token, Tag, PageEntry}
-import porter.model.PasswordCredentials
-import org.eknet.sitebag.ListEntries
+import org.eknet.sitebag.model.{Page, PageEntry, Token, Tag}
+import org.eknet.sitebag.ui.{WebDirectives, WebSettings}
 import org.parboiled.common.Base64
-import spray.http.{Uri, StatusCodes}
+import scala.concurrent.ExecutionContext
+import spray.http.{StatusCodes, Uri}
+import spray.httpx.encoding.Gzip
+import spray.routing.Directives
+import spray.routing.Route
 
 class WallabagHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: ActorRefFactory, ec: ExecutionContext, to: Timeout)
-  extends Directives with RestDirectives {
+  extends Directives with RestDirectives with WebDirectives {
 
   implicit def timeout = to
   implicit def executionContext = ec
   implicit def factory = refFactory
 
-  def porter = settings.tokenContext
+  val webSettings = settings.makeSubconfig("webui", c => new WebSettings(settings, c))
 
   def route(subject: String): Route = {
     parameter("action" ! "add", "url") { url =>
       val uri = new String(Base64.rfc2045().decode(url), "UTF-8")
-      checkAccess(subject, settings.porter, checkAddEntry) { rctx =>
-        onSuccess(appRef ? Add(rctx.subject, ExtractRequest(uri.trim))) { _ =>
+      checkAccessOrLogin(subject, checkAddEntry) { userinfo =>
+        onSuccess(appRef ? Add(userinfo.name, ExtractRequest(uri.trim))) { _ =>
           redirect("/ui/", StatusCodes.Found)
         }
       }
     } ~
     parameter("type".?, "token") { (tag, token) =>
-      authenticateToken(subject, Token(token), Set(s"sitebag:$subject:entry:get")) { rctx =>
+      checkToken(subject, Token(token), checkGetEntries) { rctx =>
         encodeResponse(Gzip) {
           wbRssEntries(settings.wbUrl(subject), appRef, mapWallabagType(tag), rctx)
         }

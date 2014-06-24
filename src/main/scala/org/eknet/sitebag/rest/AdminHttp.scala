@@ -28,38 +28,39 @@ class AdminHttp(val settings: SitebagSettings, adminRef: ActorRef, ec: Execution
   def route(subject: String, porter: PorterContext): Route = {
     pathEndOrSingleSlash {
       deleteRequest {
-        checkAccess(subject, porter, checkDeleteUser) { rctx =>
+        checkAccess(subject, checkDeleteUser) { rctx =>
           complete {
             (adminRef ? DeleteUser(rctx.subject)).mapTo[Ack]
           }
         }
       } ~
       (put | post) {
-        checkAccess(subject, porter, checkCreateUser) { rctx =>
+        checkAccess(subject, checkCreateUser) { rctx =>
           handle { np: NewPassword =>
-            (adminRef ? CreateUser(rctx.subject, np.password)).mapTo[Ack]
+            (adminRef ? CreateUser(rctx.subject, np.newpassword)).mapTo[Ack]
           }
         }
       }
     } ~
     post {
       path("newtoken") {
-        checkAccess(subject, porter, checkGenerateToken) { rctx =>
+        checkAccess(subject, checkGenerateToken) { rctx =>
           complete {
             (adminRef ? GenerateToken(rctx.subject)).mapTo[StringResult]
           }
         }
       } ~
       path("changepassword") {
-        checkAccess(subject, porter, checkChangePassword) { rctx =>
-          handle {
-            np: NewPassword =>
-              (adminRef ? ChangePassword(rctx.subject, np.password)).mapTo[Ack]
+        checkAccess(subject, checkChangePassword) { rctx =>
+          removeAuthCookie {
+            handle { np: NewPassword =>
+              (adminRef ? ChangePassword(rctx.subject, np.newpassword)).mapTo[Ack]
+            }
           }
         }
       } ~
       path("reextract") {
-        checkAccess(subject, porter, checkAddEntry) { rctx =>
+        checkAccess(subject, checkAddEntry) { rctx =>
           handle { re: ReextractAction =>
             (adminRef ? ReExtractContent(rctx.subject, re.entryId)).mapTo[Ack]
           }
