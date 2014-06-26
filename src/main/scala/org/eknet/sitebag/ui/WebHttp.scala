@@ -1,5 +1,6 @@
 package org.eknet.sitebag.ui
 
+import spray.http.StatusCodes
 import spray.routing.{Directives, Route}
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.util.Timeout
@@ -23,23 +24,26 @@ class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorR
   import spray.httpx.SprayJsonSupport._
 
   def enabled: Route = {
-    authc { userInfo =>
+    path("static" / Segment) { file =>
+      getFromResource("org/eknet/sitebag/ui/static/" +file)
+    } ~
+    path("login") {
+      render(UserInfo.empty, "Login", html.login())
+    } ~
+    authcUiOrLogin { userInfo =>
       pathEndOrSingleSlash {
-        render(userInfo, html.dashboard(webSettings))
+        render(userInfo, "Search", html.dashboard(webSettings))
       } ~
       path("conf") {
-        render(userInfo, html.configuration(userInfo, webSettings))
+        render(userInfo, "Configuration", html.configuration(userInfo, webSettings))
       } ~
       path("entry" / Segment) { id =>
         getEntry(store, GetEntry(userInfo.name, id)) { entry =>
-          render(userInfo, html.entryview(entry, webSettings))
+          render(userInfo, entry.title, html.entryview(entry, webSettings))
         }
       } ~
       path("entry" / Segment / "cache") { id =>
         getEntryContent(store, GetEntryContent(userInfo.name, id))
-      } ~
-      path("static" / Segment) { file =>
-        getFromResource("org/eknet/sitebag/ui/static/" +file)
       } ~
       path("api" / "set-theme") {
         anyParam("theme") { url =>
@@ -56,7 +60,7 @@ class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorR
           }
         }
       } ~
-      render(userInfo, html.notfound())
+      render(userInfo, "Not found", html.notfound())
     }
   }
 }

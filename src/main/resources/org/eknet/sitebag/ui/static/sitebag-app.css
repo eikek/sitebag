@@ -1,6 +1,11 @@
 body {
     padding-top: 70px;
 }
+
+#sb-login-form {
+    margin-top: 65px;
+}
+
 #sb-theme-modal .modal-body {
     max-height: 420px;
     overflow-y: auto;

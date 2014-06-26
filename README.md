@@ -1,9 +1,9 @@
 # Sitebag
 
-Sitebag is a "read-it-later" REST server; a self-hostable web application
-to store web pages. It saves the complete page (including images) as well
-as the extracted main content. You can read the saved pages using a browser
-or rss reader; or create another rest client.
+Sitebag is a "read-it-later" REST server; a self-hostable web
+application to store web pages. It saves the complete page (including
+images) and the extracted main content. You can then read the saved
+pages with a browser or rss reader for example.
 
 Sitebag is compatible to [wallabag](https://github.com/wallabag/wallabag),
 meaning that it responds to its url endpoints. This way you can use their
@@ -119,19 +119,18 @@ then you need to create a token for it which can be done on the web interface me
 
 The web interface can be found at `http://localhost:9995/ui`.
 
-The REST api is `http://localhost:9995/api/...` and can be queried with a `www-form-urlencoded`
-parameter list or a corresponding json object.
+The REST api is `http://localhost:9995/api/...` and can be queried
+with a `www-form-urlencoded` parameter list or a corresponding json
+object.
 
-Sitebag authenticates requests either with http basic, using provided json
-values `account` and `password` (or `token`) or a cookie. There are two passwords
-involved: the main password must be used for administrative tasks
-(that modify data), and the "token" is used for read-only access.
+Sitebag authenticates requests either with form- or json values
+`account` and `password` or a cookie. There is another password
+involved: the special `token` can be used to query entries (using
+special urls), everything else is protected with the main password.
 
-Due to the many notices I found in forums that some browsers don't
-support `PUT` or `DELETE` requests and the fact that the support in
-jquery for this is limited, there will be a fallback to `POST`
-requests with some action parameter (for example
-`POST /entry?id=abc123&delete`).
+For `PUT` and `DELETE` requests, there is an fallback to `POST`
+requests with some action parameter (for example `POST
+/entry?id=abc123&delete`).
 
 All JSON responses will always return an object like:
 
@@ -144,6 +143,8 @@ Once an account exists, create a token to enable the feed urls.
 
 In short, here are the relevant url endpoints:
 
+    /api/<account>/login
+    /api/<account>/logout
     /api/<account> (PUT ?newaccount=&newpassword=)
     /api/<account>/newtoken
     /api/<account>/changepassword?newpassword=
@@ -161,6 +162,12 @@ In short, here are the relevant url endpoints:
     /bin?url= get binary files
 
 More details to each one can be found below.
+
+#### login and logout
+
+The `login` endpoint is provided to retrieve a cookie that can be used
+for subsequent requests. The `logout` endpoint returns a `Set-Cookie`
+header that instructs clients to delete the cookie.
 
 #### create a new user account
 
@@ -204,7 +211,7 @@ This will remove the account and all its data.
     POST /<account>?delete=true
     -> JSON { success: true, message: "" }
 
-If porter is embedded, the account is removed from the database. If 
+If porter is embedded, the account is removed from the database. If
 authentication is done on a remote instance, all sitebag permissions
 are removed from the group.
 
@@ -219,8 +226,9 @@ mongodb client.
     -> JSON{ id: "", title: "", url: "", content: "", read: false, tags:[] }
 
 This will add the contents of the site at the given url to
-sitebag. The `title` parameter is optional and will override
-the automatic detection.
+sitebag. The `title` parameter is optional and will override the
+automatic detection. The optional `tags` list can carry tags that are
+associated with the new entry.
 
 
 #### delete site
@@ -229,7 +237,6 @@ Deletes the page entry with the given id.
 
     DELETE /<account>/entry/<id>
     POST   /<account>/entry/<id> {delete:true}
-    POST   /<account>/entry/<id> delete
     -> { success: true, message: "Deleted successfully." }
 
 
@@ -238,7 +245,7 @@ Deletes the page entry with the given id.
 Toggles the archived flag on a page entry.
 
     POST /<account>/entry/<id>/[toggle|set]archived[?flag=true|false]
-    POST /<account>/entry/<id>[toggle|set]archived JSON{ id: "", flag: }
+    POST /<account>/entry/<id>[toggle|set]archived { id: "", flag: }
     -> { value: true|false }
 
 Instead of `toggle` you can use `set` and specify the flag. The response
@@ -449,9 +456,10 @@ accounts.
 
 ## Issues and Feedback
 
-Please use the issue tracker for all sorts of things concerning sitebag.
-Feedback is always most welcome.
+Please use the issue tracker for all sorts of things concerning
+sitebag.  Feedback is always most welcome.
 
 ## License
 
-SiteBag is licensed under [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0.html).
+SiteBag is licensed under
+[Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0.html).

@@ -6,13 +6,13 @@ import akka.pattern.ask
 import akka.util.Timeout
 import spray.routing.{Route, Directives}
 import spray.httpx.SprayJsonSupport
+import spray.httpx.marshalling.ToResponseMarshaller
 import spray.http._
 import org.eknet.sitebag._
 import org.eknet.sitebag.model._
 import org.eknet.sitebag.ToggleArchived
 import porter.app.client.PorterContext
 import porter.model.Ident
-import spray.httpx.marshalling.ToResponseMarshaller
 
 class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: ActorRefFactory, ec: ExecutionContext, to: Timeout)
   extends Directives with RestDirectives with FormUnmarshaller {
@@ -24,16 +24,14 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
   import JsonProtocol._
   import SprayJsonSupport._
 
-  def getEntry(porter: PorterContext, subject: String, entryid: String, full: Boolean): Route = {
-    checkAccess(subject, porter, checkGetEntry(entryid)) { rctx =>
-      if (! full) {
-        complete {
-          (appRef ? GetEntryMeta(rctx.subject, entryid)).mapTo[Result[PageEntry]]
-        }
-      } else {
-        complete {
-          (appRef ? GetEntry(rctx.subject, entryid)).mapTo[Result[PageEntry]]
-        }
+  def getEntry(subject: Ident, entryid: String, full: Boolean): Route = {
+    if (! full) {
+      complete {
+        (appRef ? GetEntryMeta(subject, entryid)).mapTo[Result[PageEntry]]
+      }
+    } else {
+      complete {
+        (appRef ? GetEntry(subject, entryid)).mapTo[Result[PageEntry]]
       }
     }
   }
@@ -49,10 +47,30 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
   }
 
   def route(subject: String): Route = {
+    path("login") {
+      // login means validating the provided credentials and sending
+      // a cookie back that can be used as an authenticator
+      authenticateWithCookie { acc ⇒
+        val r: Result[Ident] = Success(acc.name, "Login successful")
+        complete(r)
+      } ~
+      complete {
+        val f: Ack = Failure("Credentials failed")
+        f
+      }
+    } ~
+    path("logout") {
+      // logout means only sending a cookie header that instructs clients
+      // to remove this cookie.
+      removeAuthCookie {
+        val r: Ack = Success("Logout successful")
+        complete(r)
+      }
+    } ~
     path("entry") {
       // add urls to sitebag
       (put | post) {
-        checkAccess(subject, settings.porter, checkAddEntry) { rctx =>
+        checkAccess(subject, checkAddEntry) { rctx =>
           handle { radd: RAdd =>
             (appRef ? Add(rctx.subject, ExtractRequest(radd.url), radd.title, radd.tags)).mapTo[Result[String]]
           }
@@ -62,15 +80,16 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
         // this is a special handler for the bookmarklet. it will respond with a
         // little javascript alert
         parameters("url", "add") { (url, _) =>
-          checkAccess(subject, settings.porter, checkAddEntry) { rctx =>
+          checkAccess(subject, checkAddEntry) { rctx =>
             val f = (appRef ? Add(rctx.subject, ExtractRequest(url))).mapTo[Result[String]]
             onSuccess(f) { result =>
               respondWithMediaType(MediaTypes.`application/javascript`) {
-                complete {
-                  "alert('"+ result.message +"');"
-                }
+                complete("alert('"+ result.message +"');")
               }
             }
+          } ~
+          respondWithMediaType(MediaTypes.`application/javascript`) {
+            complete(s"alert('»$subject« is not logged in!\\n\\nPlease login to your Sitebag account at\\n${settings.uiUri("")}!');")
           }
         }
       }
@@ -79,20 +98,29 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
       // gets a single entry with complete content by default, if `complete=false`
       // the full content is not sent
       get {
-        parameter('complete.as[Boolean] ? true) { full =>
-          getEntry(settings.tokenContext, subject, id, full)
-        }
+        parameters('token.?, 'complete.as[Boolean] ? true) { (token, full) ⇒
+          token match {
+            case Some(t) ⇒
+              checkToken(subject, Token(t), checkGetEntry(id)) { _ ⇒
+                getEntry(subject, id, full)
+              }
+            case None ⇒
+              checkAccess(subject, checkGetEntry(id)) { rctx ⇒
+                getEntry(rctx.subject, id, full)
+              }
+          }
+        } 
       } ~
       // deletes a entry by its id
       delete {
-        checkAccess(subject, settings.porter, checkDeleteEntry(id)) { rctx =>
+        checkAccess(subject, checkDeleteEntry(id)) { rctx =>
           complete {
             (appRef ? DropEntry(rctx.subject, id)).mapTo[Ack]
           }
         }
       } ~
       post {
-        checkAccess(subject, settings.porter, checkDeleteEntry(id)) { rctx =>
+        checkAccess(subject, checkDeleteEntry(id)) { rctx =>
           handle { _: DeleteAction =>
             (appRef ? DropEntry(rctx.subject, id)).mapTo[Ack]
           }
@@ -102,7 +130,7 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
     path("entry" / Segment / "togglearchived") { id =>
       // toggles the archived flag of an entry
       post {
-        checkAccess(subject, settings.porter, checkUpdateEntry(id)) { rctx =>
+        checkAccess(subject, checkUpdateEntry(id)) { rctx =>
           complete {
             (appRef ? ToggleArchived(rctx.subject, id)).mapTo[Result[Boolean]]
           }
@@ -112,7 +140,7 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
     path("entry" / Segment / "setarchived") { id =>
       // sets the archived flag of the entry to `true`
       post {
-        checkAccess(subject, settings.porter, checkUpdateEntry(id)) { rctx =>
+        checkAccess(subject, checkUpdateEntry(id)) { rctx =>
           handle { flag: Flag =>
             (appRef ? SetArchived(rctx.subject, id, flag.flag)).mapTo[Result[Boolean]]
           }
@@ -122,7 +150,7 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
     path("entry" / Segment / "tag") { id =>
       // adds all given tags to this entry
       post {
-        checkAccess(subject, settings.porter, checkUpdateEntry(id)) { rctx =>
+        checkAccess(subject, checkUpdateEntry(id)) { rctx =>
           handle { tagin: TagInput =>
             (appRef ? TagEntry(rctx.subject, id, tagin.tags)).mapTo[Ack]
           }
@@ -132,7 +160,7 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
     path("entry" / Segment / "untag") { id =>
       // removes all given tags from this entry
       post {
-        checkAccess(subject, settings.porter, checkUpdateEntry(id)) { rctx =>
+        checkAccess(subject, checkUpdateEntry(id)) { rctx =>
           handle { tagin: TagInput =>
             (appRef ? UntagEntry(rctx.subject, id, tagin.tags)).mapTo[Ack]
           }
@@ -142,7 +170,7 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
     path("entry" / Segment / "tags") { id =>
       // removes all tags from this entry and adds the given tags
       post {
-        checkAccess(subject, settings.porter, checkUpdateEntry(id)) { rctx =>
+        checkAccess(subject, checkUpdateEntry(id)) { rctx =>
           handle { tagin: TagInput =>
             (appRef ? SetTags(subject, id, tagin.tags)).mapTo[Ack]
           }
@@ -152,7 +180,7 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
     path("entry" / Segment / "cache") { id =>
       // return the original page from cache
       get {
-        checkAccess(subject, settings.tokenContext, checkGetEntry(id)) { rctx =>
+        checkAccess(subject, checkGetEntry(id)) { rctx =>
           getEntryContent(appRef, GetEntryContent(rctx.subject, id))
         }
       }
@@ -160,7 +188,7 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
     path("tags") {
       // returns a "tag cloud"
       get {
-        checkAccess(subject, settings.porter, checkListTags) { rctx =>
+        checkAccess(subject, checkListTags) { rctx =>
           fromParams(TagFilter) { f =>
             complete {
               (appRef ? ListTags(rctx.subject, f.filter)).mapTo[Result[TagList]]
@@ -172,8 +200,15 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
     // returns a list of entries as json
     path("entries" / "json") {
       get {
-        checkAccess(subject, settings.tokenContext, checkGetEntries) { rctx =>
+        checkAccess(subject, checkGetEntries) { rctx =>
           listEntries(subject, (s, r) => r)
+        }
+      }
+    } ~
+    path("entries" / "json" / Segment) { token =>
+      get {
+        checkToken(subject, Token(token), checkGetEntries) { _ =>
+          listEntries(subject, (s, r) ⇒ r)
         }
       }
     } ~
@@ -181,7 +216,7 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
     path("entries" / "rss") {
       import RssSupport._
       get {
-        checkAccess(subject, settings.tokenContext, checkGetEntries) { rctx =>
+        checkAccess(subject, checkGetEntries) { rctx =>
           listEntries(subject, (search, res) => {
             val uri = settings.rssFeedUrl(subject, rctx.token.get, search)
             mapRss(uri, rctx.subject, search, res)(settings.entryUiUri)
@@ -189,15 +224,16 @@ class AppHttp(val settings: SitebagSettings, appRef: ActorRef, refFactory: Actor
         }
       }
     } ~
-    path("entries" / "rss" / Segment) { token =>
+    path("entries" / "rss" / Segment) { tokenStr ⇒
       // returns a  list of entries as rss xml and authenticates the request with
       // the token given as last part in the url path
       get {
         import RssSupport._
-        authenticateToken(subject, Token(token), Set(s"sitebag:${subject.name}:entry:get")) { rctx =>
-          listEntries(subject, (search, res) => {
-            val uri = settings.rssFeedUrl(subject, rctx.token.get, search)
-            mapRss(uri, rctx.subject, search, res)(settings.entryUiUri)
+        val token = Token(tokenStr)
+        checkToken(subject, token, checkGetEntries) { _ ⇒
+          listEntries(subject, (search, res) ⇒ {
+            val uri = settings.rssFeedUrl(subject, token, search)
+            mapRss(uri, subject, search, res)(settings.entryUiUri)
           })
         }
       }

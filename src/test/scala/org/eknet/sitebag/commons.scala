@@ -1,33 +1,37 @@
 package org.eknet.sitebag
 
-import spray.http._
-import scala.concurrent.Future
-import akka.actor.{ActorRef, Props, ActorSystem}
-import spray.http.HttpResponse
-import org.eknet.sitebag.content.Content
-import akka.util.ByteString
-import org.eknet.sitebag.model.{PageEntry, FullPageEntry}
-import scala.util.Random
-import java.nio.file.{FileVisitResult, Path, SimpleFileVisitor, Files}
 import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.{FileVisitResult, Path, SimpleFileVisitor, Files}
 import java.io.{File, IOException}
+import scala.concurrent.Future
+import scala.util.Random
+import akka.actor.{ActorRef, Props, ActorSystem}
+import akka.util.ByteString
+import spray.json.JsObject
+import spray.json.JsonFormat
+import spray.http._
+import porter.model.Ident
+import org.eknet.sitebag.rest.JsonProtocol
+import org.eknet.sitebag.rest.UserPassCredentials
+import org.eknet.sitebag.content.Content
 import org.eknet.sitebag.lucene._
+import org.eknet.sitebag.model._
 import org.apache.lucene.index.{Term, IndexWriterConfig, IndexWriter, DirectoryReader}
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.search.{TopScoreDocCollector, IndexSearcher}
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document._
-import org.eknet.sitebag.model.PageEntry
-import spray.http.HttpResponse
-import org.eknet.sitebag.model.FullPageEntry
-import org.eknet.sitebag.model.PageEntry
-import spray.http.HttpResponse
-import org.eknet.sitebag.model.FullPageEntry
 
 object commons {
 
   val htmlType = ContentType(MediaTypes.`text/html`, HttpCharsets.`UTF-8`)
   private val random = new Random()
+
+  def withUser[A](user: Ident, password: String, data: A)(implicit jf: JsonFormat[A]) = {
+    val up = JsonProtocol.userpassCredFormat.write(UserPassCredentials(user.name, password)).asInstanceOf[JsObject]
+    val df = jf.write(data).asInstanceOf[JsObject]
+    JsObject(up.fields ++ df.fields)
+  }
 
   def html(name: String) = {
     val url = getClass.getResource(s"/$name")

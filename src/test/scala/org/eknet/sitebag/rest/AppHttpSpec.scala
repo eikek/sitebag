@@ -4,9 +4,12 @@ import scala.concurrent.duration._
 import org.specs2.mutable.Specification
 import akka.util.Timeout
 import java.util.concurrent.TimeUnit
+import spray.json.JsObject
+import spray.json.JsonFormat
 import spray.routing.{RequestContext, HttpService}
 import spray.httpx.{TransformerAux, SprayJsonSupport}
 import spray.http._
+import spray.http.HttpHeaders._
 import spray.testkit.Specs2RouteTest
 import porter.model.Ident
 import org.eknet.sitebag._
@@ -33,7 +36,7 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
 
   val entry = DummyStoreActor.existingEntry
 
-  def as(username: Ident, password: String = "test") = addCredentials(BasicHttpCredentials(username.name, password))
+  def as(username: Ident, password: String = "test") = Map("username" → username.name, "password" → password)
   def asSuperuser = as(PorterStore.superuser.name, PorterStore.password)
 
   def assertAck = {
@@ -45,8 +48,40 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
   }
 
   "The app http service" should {
+    "login by sending a session cookie" in {
+      Post("/login", UserPassCredentials("mary", "test")) ~> route("mary") ~> check {
+        status === StatusCodes.OK
+        response.header[`Set-Cookie`] match {
+          case Some(`Set-Cookie`(cookie)) ⇒
+            assert(cookie.content.nonEmpty)
+            assert(cookie.maxAge == None)
+            assert(cookie.expires == None)
+          case _ ⇒ sys.error("no cookie")
+        }
+        responseAs[StringResult] match {
+          case Success(Some(value), _ ) => assert(value === "mary")
+          case x => sys.error("Invalid response: "+ x)
+        }
+        true
+      }
+    }
+    "logout by sending a zero age cookie" in {
+      Post("/logout", UserPassCredentials("mary", "test")) ~> route("mary") ~> check {
+        status === StatusCodes.OK
+        response.header[`Set-Cookie`] match {
+          case Some(`Set-Cookie`(cookie)) ⇒
+            assert(cookie.content.isEmpty)
+            assert(cookie.maxAge.get == 0)
+          case _ ⇒
+            sys.error("no cookie")
+        }
+        assertAck
+        true
+      }
+    }
     "add a page entry" in {
-      Put("/entry", RAdd("https://dummy.org/test.html", None, Set.empty)) ~> as("mary") ~> route("mary") ~> check {
+      val data = withUser("mary", "test", RAdd("https://dummy.org/test.html", None, Set.empty))
+      Put("/entry", data) ~> route("mary") ~> check {
         status === StatusCodes.OK
         responseAs[StringResult] match {
           case Success(Some(value), _ ) => assert(value.length > 0)
@@ -56,7 +91,7 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
       }
     }
     "get a page entry" in {
-      Get("/entry/"+ entry.id) ~> as("mary", "abc") ~> route("mary") ~> check {
+      Get("/entry/"+ entry.id+ "?token=abc") ~> route("mary") ~> check {
         responseAs[Result[PageEntry]] match {
           case Success(Some(e), _) =>
             assert(e.title === entry.title)
@@ -67,46 +102,43 @@ class AppHttpSpec extends Specification with Specs2RouteTest with HttpService wi
       }
     }
     "delete a page entry" in {
-      Delete("/entry/"+ entry.id) ~> as("mary") ~> route("mary") ~> check {
-        assertAck
-      }
-      Post("/entry/"+ entry.id, DeleteAction(true)) ~> as("mary") ~> route("mary") ~> check {
+      Post("/entry/" + entry.id, FormData(as("mary") ++ Seq("delete" → ""))) ~> route("mary") ~> check {
         responseAs[Ack].message === "Page removed."
         assertAck
       }
-      Post("/entry/" + entry.id, FormData(Map("delete" -> ""))) ~> as("mary") ~> route("mary") ~> check {
+      Delete("/entry/"+ entry.id, as("mary")) ~> route("mary") ~> check {
         responseAs[Ack].message === "Page removed."
         assertAck
       }
     }
     "toggle and set archived status" in {
-      Post(s"/entry/${entry.id}/togglearchived") ~> as("mary") ~> route("mary") ~> check {
+      Post(s"/entry/${entry.id}/togglearchived", as("mary")) ~> route("mary") ~> check {
         assertAck
       }
-      Post(s"/entry/${entry.id}/setarchived", Flag(true)) ~> as("mary") ~> route("mary") ~> check {
+      Post(s"/entry/${entry.id}/setarchived", withUser("mary", "test", Flag(true))) ~> route("mary") ~> check {
         assertAck
       }
-      Post(s"/entry/${entry.id}/setarchived", Flag(true).toFormData) ~> as("mary") ~> route("mary") ~> check {
+      Post(s"/entry/${entry.id}/setarchived", Flag(true).toFormData.as("mary", "test")) ~> route("mary") ~> check {
         assertAck
       }
     }
     "tag and untag entries" in {
-      Post(s"/entry/${entry.id}/tag", TagInput(Set(Tag.favourite))) ~> as("mary") ~> route("mary") ~> check {
+      Post(s"/entry/${entry.id}/tag", withUser("mary", "test", TagInput(Set(Tag.favourite)))) ~> route("mary") ~> check {
         assertAck
       }
-      Post(s"/entry/${entry.id}/untag", TagInput(Set(Tag.favourite))) ~> as("mary") ~> route("mary") ~> check {
+      Post(s"/entry/${entry.id}/untag", withUser("mary", "test", TagInput(Set(Tag.favourite)))) ~> route("mary") ~> check {
         assertAck
       }
     }
     "list tags" in {
-      Get("/tags", TagFilter(".*")) ~> as("mary") ~> route("mary") ~> check {
+      Get("/tags", withUser("mary", "test", TagFilter(".*"))) ~> route("mary") ~> check {
         responseAs[Result[TagList]] match {
           case Success(Some(list), _) => assert(list === DummyStoreActor.tagList)
           case x => sys.error("Invalid response: "+x)
         }
         true
       }
-      Get("/tags") ~> as("mary") ~> route("mary") ~> check {
+      Get("/tags", as("mary")) ~> route("mary") ~> check {
         responseAs[Result[TagList]] match {
           case Success(Some(list), _) => assert(list === DummyStoreActor.tagList)
           case x => sys.error("Invalid response: "+x)

@@ -1,11 +1,11 @@
-@(user: UserInfo, settings: WebSettings, body: => Html)
+@(user: UserInfo, settings: WebSettings, title: String, body: => Html)
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SiteBag :: @user.name</title>
+  <title>Sitebag &mdash; @title</title>
 
   <!-- Bootstrap -->
   <!--<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/latest/css/bootstrap.min.css">-->
@@ -20,7 +20,6 @@
   <script src="//code.jquery.com/jquery-2.1.0.min.js"></script>
   <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
   <script src="@(settings.base.pathPrefix)ui/static/bootstrap3-typeahead.min.js" type="text/javascript"></script>
-  <!--<script src="//twitter.github.com/typeahead.js/releases/latest/typeahead.bundle.min.js" type="text/javascript"></script>-->
 
   <script src="//fgnass.github.io/spin.js/spin.min.js" type="text/javascript"></script>
   <script src="//cdnjs.cloudflare.com/ajax/libs/mustache.js/0.7.2/mustache.min.js" type="text/javascript"></script>
@@ -28,9 +27,6 @@
   @org.eknet.sitebag.ui.html.settings(user, settings)
 
   <script src="@(settings.base.pathPrefix)ui/static/sitebag-app.js" type="text/javascript"></script>
-
-
-
 </head>
 <body>
 

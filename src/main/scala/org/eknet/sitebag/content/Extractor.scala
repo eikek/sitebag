@@ -55,7 +55,7 @@ object Extractor {
       val ct = content.contentType.getOrElse(ContentTypes.`application/octet-stream`)
       val short = s"No content extractor for $ct data available."
       val file = if (content.uri.path.isEmpty) content.uri.toString else content.uri.path.reverse.head.toString
-      val title = s"No content extractor for $file"
+      val title = s"$file: no content extractor"
       val text = html.nocontent(content).body
       ExtractedContent(content, title, text, short, None, Set.empty)
   }

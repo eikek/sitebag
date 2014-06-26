@@ -10,7 +10,6 @@ import scala.reflect.ClassTag
 
 trait JsonProtocol extends ModelJsonProtocol {
   implicit val userpassCredFormat = jsonFormat2(UserPassCredentials)
-  implicit val tokenpassFormat = jsonFormat2(TokenCredentials)
 
   implicit val nullFormat = new JsonFormat[Null] {
     def read(json: JsValue) = json match {

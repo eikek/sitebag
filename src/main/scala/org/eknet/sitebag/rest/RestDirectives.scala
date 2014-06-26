@@ -25,24 +25,23 @@ trait RestDirectives extends Directives with CommonDirectives {
   implicit def executionContext: ExecutionContext
   implicit def timeout: Timeout
 
-  def authenticateToken(subject: Ident, token: Token, rules: Set[String]): Directive1[RestContext] = {
-    authenticateAccount(settings.tokenContext, Set(PasswordCredentials(subject, token.token))).flatMap {
-      acc => authz2(settings.tokenContext, acc.name, rules).hflatMap {
-        _ => provide(RestContext(acc.name, subject, Some(token)))
+  def checkToken(subject: Ident, token: Token, authz: (PorterContext, RestContext) ⇒ Directive0): Directive1[RestContext] = {
+    authenticateAccount(settings.tokenContext, Set(PasswordCredentials(subject, token.token))).flatMap { acc ⇒
+      val rctx = RestContext(acc.name, subject, Some(token))
+      authz(settings.tokenContext, rctx).hflatMap {
+        _ ⇒ provide(rctx)
       }
     }
   }
-  def authenticate(implicit _p: PorterContext = settings.porter): Directive1[Account] =
-    authc(settings.cookieKey)
 
-  def withAccount(subject: String)(implicit _p: PorterContext = settings.porter): Directive1[RestContext] = {
-    authc(settings.cookieKey).map(acc => RestContext(acc.name, subject, UserInfo.token.get(acc.props)))
+  def checkAccess(subject: String, authz: (PorterContext, RestContext) ⇒ Directive0): Directive1[RestContext] = {
+    val auth = authc(settings).map(acc ⇒ RestContext(acc.name, subject, UserInfo.token.get(acc.props)))
+    auth.flatMap(ctx ⇒ authz(settings.porter, ctx).hflatMap(_ ⇒ provide(ctx)))
   }
 
-  def checkAccess(subject: String, porter: PorterContext, authz: (PorterContext, RestContext) => Directive0): Directive1[RestContext] = {
-    val auth = withAccount(subject)(porter)
-    auth.flatMap(ctx => authz(porter, ctx).hflatMap(_ => provide(ctx)))
-  }
+  def authenticateWithCookie = authcWithCookie(settings)
+
+  def removeAuthCookie = AuthDirectives.removeAuthCookie(settings)
 
   private def accessDeniedLogMessage(authId: Ident, perms: Set[String])(any: Any) =
     LogEntry(s"User '${authId.name}' denied '${perms.mkString(", ")}'", Logging.ErrorLevel)
@@ -60,34 +59,34 @@ trait RestDirectives extends Directives with CommonDirectives {
   }
 
   def checkCreateUser(porter: PorterContext, rctx: RestContext): Directive0 =
-    authz2(porter, rctx.authId, Set("sitebag:createuser"))
+    authz2(porter, rctx.authId, permission.createUser)
 
   def checkDeleteUser(porter: PorterContext, rctx: RestContext): Directive0 =
-    authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:delete"))
+    authz2(porter, rctx.authId, permission.deleteUser(rctx.subject))
 
   def checkListTags(porter: PorterContext, rctx: RestContext): Directive0 =
-    authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:listtags"))
+    authz2(porter, rctx.authId, permission.listTags(rctx.subject))
 
   def checkGenerateToken(porter: PorterContext, rctx: RestContext): Directive0 =
-    authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:generatetoken"))
+    authz2(porter, rctx.authId, permission.generateToken(rctx.subject))
 
   def checkChangePassword(porter: PorterContext, rctx: RestContext): Directive0 =
-    authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:changepassword"))
+    authz2(porter, rctx.authId, permission.changePassword(rctx.subject))
 
   def checkGetEntry(entryId: String)(porter: PorterContext, rctx: RestContext): Directive0 =
-    authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:entry:get:$entryId"))
+    authz2(porter, rctx.authId, permission.getEntry(rctx.subject, entryId))
 
   def checkGetEntries(porter: PorterContext, rctx: RestContext): Directive0 =
-    authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:entry:get"))
+    authz2(porter, rctx.authId, permission.getEntries(rctx.subject))
 
   def checkAddEntry(porter: PorterContext, rctx: RestContext): Directive0 =
-    authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:entry:add"))
+    authz2(porter, rctx.authId, permission.addEntry(rctx.subject))
 
   def checkDeleteEntry(entryId: String)(porter: PorterContext, rctx: RestContext): Directive0 =
-    authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:entry:delete:$entryId"))
+    authz2(porter, rctx.authId, permission.deleteEntry(rctx.subject, entryId))
 
   def checkUpdateEntry(entryId: String)(porter: PorterContext, rctx: RestContext): Directive0 =
-    authz2(porter, rctx.authId, Set(s"sitebag:${rctx.subject.name}:entry:update:$entryId"))
+    authz2(porter, rctx.authId, permission.updateEntry(rctx.subject, entryId))
 
   def getEntryContent(store: ActorRef, req: GetEntryContent): Route = {
     val f = (store ? req).mapTo[Result[Content]]
