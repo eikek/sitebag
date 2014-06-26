@@ -46,9 +46,10 @@ trait WebDirectives extends Directives {
   def authcUiOrLogin: Directive1[UserInfo] = {
     val main = authcUi
     val loginPage: Directive1[UserInfo] = extract(_.request.uri).flatMap { uri ⇒
-      Route.toDirective(redirect(settings.uiUri("login").withQuery(Map("r" -> uri.toString)).toRelative, StatusCodes.TemporaryRedirect))
+      val ref = uri.toRelative.resolvedAgainst(settings.baseUrl)
+      val loginUrl = settings.uiUri("login").withQuery(Map("r" -> ref.toString)).toRelative
+      Route.toDirective(redirect(loginUrl, StatusCodes.TemporaryRedirect))
     }
-      
     main | loginPage
   }
 
