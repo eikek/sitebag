@@ -17,6 +17,8 @@ package object lucene {
   case class Mod(m: Index => Unit, message: String = "Modification done.") extends WriteMessage
   case object ClearIndex extends WriteMessage
 
+  case object Shutdown
+
   /** The update command first searches a single document by the given term and then
     * applies the mutation function to it. The modified document is then passed to
     * `updateDocument` with the given term.

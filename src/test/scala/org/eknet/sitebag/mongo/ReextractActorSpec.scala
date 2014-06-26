@@ -67,7 +67,7 @@ class ReextractActorSpec extends ActorTestBase("ReExtractActorTest") with MongoT
     }
   }
 
-  def expectRunningState(text: String = "Re-extraction for 'testuser' done.") {
+  def expectRunningState(text: String = "Re-extraction for 'testuser' completed.") {
     expectMsgPF(hint = s"Success(Running(), $text)") {
       case Success(Some(ReExtractStatus.Running(Ident("testuser"), _, _, _)), msg) ⇒
         assert(msg === text)

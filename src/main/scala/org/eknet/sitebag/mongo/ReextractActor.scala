@@ -72,6 +72,7 @@ class ReextractAllWorker(worker: ActorRef, account: Ident, mongo: SitebagMongo) 
       val client = sender
       stats.init()
       context.become(working(client))
+      context.setReceiveTimeout(2.minutes)
       log.info(s"Starting re-extraction job for ${account.name}.")
       val f = mongo.withPageMetaEntries(account) { entry =>
         worker ! ExtractJob(account, entry.id)
@@ -95,10 +96,17 @@ class ReextractAllWorker(worker: ActorRef, account: Ident, mongo: SitebagMongo) 
       stats.total = Some(total)
 
     case r: Result[_] =>
-      stats.next()
-      log.debug(s"Reextraction: ${stats.done} entries done.")
+      r match {
+        case Failure(msg, Some(ex)) ⇒
+          log.error(ex, "Error during extraction")
+        case Failure(msg, None) ⇒
+          log.error("Error during extraction: "+ msg)
+        case _ ⇒
+      }
+      stats.next(r)
+      log.debug(s"Reextraction '${account.name}': [${stats.done}|${stats.failed}]/${stats.total} entries done.")
       if (stats.isDone) {
-        self ! Finished(s"Re-extraction for '${account.name}' done.", None)
+        self ! Finished(s"Re-extraction for '${account.name}' completed.", None)
       }
 
     case ReExtractStatusRequest(_) ⇒
@@ -110,6 +118,7 @@ class ReextractAllWorker(worker: ActorRef, account: Ident, mongo: SitebagMongo) 
       context.stop(self)
 
     case ReceiveTimeout =>
+      log.warning("Timeout during extraction: "+ stats.toStatus)
       client ! Failure("Timeout extracting entries. Process cancelled.")
       context.stop(self)
   }
@@ -118,19 +127,23 @@ object ReextractAllWorker {
 
   private final class Stats(account: Ident) {
     var done: Int = 0
+    var failed: Int = 0
     var total: Option[Int] = None
     var startedAt: Long = -1
     var finishedAt: Option[Long] = None
 
-    def next() = {
-      done += 1;
-      for (t <- total; if done >= t) {
+    def next(r: Result[_]) = {
+      if (r.isSuccess) done += 1;
+      else failed += 1;
+
+      for (t <- total; if (done + failed) >= t) {
         finishedAt = Some(System.currentTimeMillis())
       }
       done
     }
     def init() = {
       done = 0
+      failed = 0
       total = None
       finishedAt = None
       startedAt = System.currentTimeMillis()
@@ -146,10 +159,10 @@ class ReextractEntryWorker(extrRef: ActorRef, mongo: SitebagMongo) extends Actor
   import akka.pattern.pipe
   import context.dispatcher
 
-  private implicit val timeout: Timeout = 10.seconds
   type ExtractResult = Result[ExtractedContent]
 
   def extractContent(contentResult: Result[Content]): Future[ExtractResult] = {
+    implicit val extractTimeout: Timeout = 5.minutes
     contentResult match {
       case Success(Some(c), _) =>
         (extrRef ? c).mapTo[ExtractResult]
@@ -190,7 +203,7 @@ class ReextractEntryWorker(extrRef: ActorRef, mongo: SitebagMongo) extends Actor
         extract <- extractContent(content)
         result  <- updateExtractedContent(account, entryId, extract)
       } yield result
-      f pipeTo sender
+      (f.recover { case ex ⇒ Failure(ex) }) pipeTo sender
   }
 }
 object ReextractEntryWorker {

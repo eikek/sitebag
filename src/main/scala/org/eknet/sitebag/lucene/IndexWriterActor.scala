@@ -1,12 +1,13 @@
 package org.eknet.sitebag.lucene
 
-import akka.actor.{ReceiveTimeout, Props, Actor, ActorLogging}
-import org.apache.lucene.store.{FSDirectory, Directory}
-import org.apache.lucene.index.{IndexWriterConfig, IndexWriter}
 import java.io.File
 import java.nio.file.Path
-import org.apache.lucene.analysis.standard.StandardAnalyzer
 import scala.concurrent.Future
+import scala.concurrent.duration._
+import akka.actor._
+import org.apache.lucene.store.{FSDirectory, Directory}
+import org.apache.lucene.index.{IndexWriterConfig, IndexWriter}
+import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.eknet.sitebag.{SitebagSettings, Failure, Success}
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -17,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * @param directory
  */
-class IndexWriterActor(directory: Directory) extends Actor with ActorLogging {
+class IndexWriterActor(directory: Directory) extends Actor with ActorLogging with IndexClosing {
   import context.dispatcher
   import akka.pattern.pipe
 
@@ -37,6 +38,10 @@ class IndexWriterActor(directory: Directory) extends Actor with ActorLogging {
   }
 
   def receive = {
+    case Shutdown ⇒
+      context.become(shuttingdown(writerRef))
+      self ! IndexClosing.Check
+
     case ReceiveTimeout =>
       if (writerRef.get() == 0) {
         closeCurrentWriter()
@@ -54,8 +59,10 @@ class IndexWriterActor(directory: Directory) extends Actor with ActorLogging {
       f pipeTo sender
   }
 
-
   override def postStop() = {
+    if (writerRef.get() > 0) {
+      log.warning("Force closing index writer due to actor stopping, although still in use.")
+    }
     closeCurrentWriter()
     super.postStop()
   }

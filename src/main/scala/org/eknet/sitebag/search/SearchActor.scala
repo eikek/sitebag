@@ -55,10 +55,10 @@ class SearchActor(mongo: SitebagMongo) extends Actor with ActorLogging {
       accountIndex(account) forward rs
 
     case ReextractionDone(account) =>
-      self forward RebuildIndex(Some(account), onlyIfEmpty = false)
+      self ! RebuildIndex(Some(account), onlyIfEmpty = false)
 
     case se: SitebagEvent =>
-      accountIndex(se.account) forward se
+      accountIndex(se.account) ! se
 
     case list: ListEntries =>
       accountIndex(list.account) forward list
