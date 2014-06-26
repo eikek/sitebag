@@ -87,6 +87,9 @@ class AdminActor(reextrRef: ActorRef, porter: PorterContext, mongo: SitebagMongo
 
     case req: ReExtractContent =>
       reextrRef forward req
+
+    case req: ReExtractStatusRequest ⇒
+      reextrRef forward req
   }
   
   private def modifyAccount(name: Ident)(f: Account => Account) = porter.updateAccount(name, f)

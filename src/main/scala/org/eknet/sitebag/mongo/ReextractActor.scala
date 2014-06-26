@@ -1,15 +1,13 @@
 package org.eknet.sitebag.mongo
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import akka.actor._
+import akka.util.Timeout
 import porter.model.Ident
 import org.eknet.sitebag._
 import org.eknet.sitebag.content.{ExtractedContent, Content}
 import org.eknet.sitebag.mongo.ReextractEntryWorker.ExtractJob
-import scala.Some
-import org.eknet.sitebag.ReExtractContent
-import akka.util.Timeout
-import scala.concurrent.Future
 
 class ReextractActor(extrRef: ActorRef, mongo: SitebagMongo) extends Actor with ActorLogging {
   private var account2Worker = Map.empty[Ident, ActorRef]
@@ -26,13 +24,24 @@ class ReextractActor(extrRef: ActorRef, mongo: SitebagMongo) extends Actor with 
         val w = context.watch(context.actorOf(Props(
           new ReextractAllWorker(worker, account, mongo)),
           s"${account.name}-extraction"))
-        account2Worker += (account -> w)
-        worker2Account += (w -> account)
+        account2Worker += (account → w)
+        worker2Account += (w → account)
         w forward "start"
+        sender ! Success(s"Re-extraction started for '${account.name}'.")
       }
 
     case ReExtractContent(account, Some(entryId)) =>
-      worker forward ExtractJob(account, entryId)
+      if (account2Worker contains account) {
+        sender ! Failure("A re-extraction job is already running for you.")
+      } else {
+        worker forward ExtractJob(account, entryId)
+      }
+
+    case req@ReExtractStatusRequest(account) ⇒
+      account2Worker.get(account) match {
+        case Some(w) ⇒ w forward req
+        case None    ⇒ sender ! Success(ReExtractStatus.Idle(account))
+      }
 
     case Terminated(ref) =>
       if (worker2Account contains ref) {
@@ -46,13 +55,14 @@ class ReextractActor(extrRef: ActorRef, mongo: SitebagMongo) extends Actor with 
 object ReextractActor {
   def apply(extrRef: ActorRef, mongo: SitebagMongo): Props = Props(classOf[ReextractActor], extrRef, mongo)
 }
+
+
 class ReextractAllWorker(worker: ActorRef, account: Ident, mongo: SitebagMongo) extends Actor with ActorLogging {
 
-  context.setReceiveTimeout(10.minutes)
   import context.dispatcher
+  import ReextractAllWorker.Stats
 
-  private[this] var numberOfJobs = -1
-  private[this] val numberOfJobsDone = Iterator from 0
+  private [this] val stats = new Stats(account)
 
   case class Finished(msg: String, error: Option[Throwable]) extends Serializable
   case class PushDone(n: Int)
@@ -60,6 +70,7 @@ class ReextractAllWorker(worker: ActorRef, account: Ident, mongo: SitebagMongo) 
   def receive = {
     case "start" =>
       val client = sender
+      stats.init()
       context.become(working(client))
       log.info(s"Starting re-extraction job for ${account.name}.")
       val f = mongo.withPageMetaEntries(account) { entry =>
@@ -78,20 +89,24 @@ class ReextractAllWorker(worker: ActorRef, account: Ident, mongo: SitebagMongo) 
       log.warning("Timeout starting extraction.")
       context.stop(self)
   }
+
   def working(client: ActorRef): Receive = {
-    case PushDone(n) =>
-      numberOfJobs = n
+    case PushDone(total) =>
+      stats.total = Some(total)
 
     case r: Result[_] =>
-      val n = numberOfJobsDone.next()
-      log.debug(s"Reextraction: ${n+1} entries done.")
-      if (n == numberOfJobs -1) {
+      stats.next()
+      log.debug(s"Reextraction: ${stats.done} entries done.")
+      if (stats.isDone) {
         self ! Finished(s"Re-extraction for '${account.name}' done.", None)
       }
 
+    case ReExtractStatusRequest(_) ⇒
+      sender ! Success(stats.toStatus)
+
     case Finished(msg, error) =>
       error.map(e => log.error(msg, e)).getOrElse(log.info(msg))
-      client ! error.map(Failure.apply).getOrElse(Success(msg))
+      client ! error.map(Failure.apply).getOrElse(Success(stats.toStatus, msg))
       context.stop(self)
 
     case ReceiveTimeout =>
@@ -99,6 +114,32 @@ class ReextractAllWorker(worker: ActorRef, account: Ident, mongo: SitebagMongo) 
       context.stop(self)
   }
 }
+object ReextractAllWorker {
+
+  private final class Stats(account: Ident) {
+    var done: Int = 0
+    var total: Option[Int] = None
+    var startedAt: Long = -1
+    var finishedAt: Option[Long] = None
+
+    def next() = {
+      done += 1;
+      for (t <- total; if done >= t) {
+        finishedAt = Some(System.currentTimeMillis())
+      }
+      done
+    }
+    def init() = {
+      done = 0
+      total = None
+      finishedAt = None
+      startedAt = System.currentTimeMillis()
+    }
+    def isDone = finishedAt.isDefined
+    def toStatus = ReExtractStatus.Running(account, done, total, startedAt)
+  }
+}
+
 
 class ReextractEntryWorker(extrRef: ActorRef, mongo: SitebagMongo) extends Actor with ActorLogging {
   import akka.pattern.ask
