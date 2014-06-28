@@ -32,8 +32,10 @@ class IndexActor(indexDir: File) extends Actor with ActorLogging {
 
   def ready: Receive = {
     case ClearIndex =>
+      log.info("Index is being cleared!")
+      context.setReceiveTimeout(2.minutes)
       context.become(clearing(sender))
-      context.children.foreach(context.stop)
+      context.children.foreach(ref ⇒ ref ! Shutdown)
 
     case Update(tval, tc, mutate) =>
       val find = (readerRef ? FindByTerm(tval, documentHandler, tc)).mapTo[Result[Iterable[Document]]]
@@ -60,24 +62,40 @@ class IndexActor(indexDir: File) extends Actor with ActorLogging {
     case rm: ReadMessage => readerRef forward rm
   }
 
-  def clearing(client: ActorRef, refsLeft: Int = 2, queue: List[(ActorRef, WriteMessage)] = Nil): Receive = {
+  def clearing(client: ActorRef, refsLeft: Int = 2, queue: List[(ActorRef, WriteMessage)] = Nil, queueSize: Int = 0): Receive = {
     case rm: ReadMessage => sender ! Failure("Index is currently being cleared.")
 
     case wm: WriteMessage =>
-      context.become(clearing(client, refsLeft, (sender -> wm) :: queue))
+      if (queueSize > 5000) {
+        log.error("Clearing index cancelled, too many commands received while waiting for indexes to become idle.")
+        client ! Failure("Clearing index cancelled due to too many concurrent commands")
+        context.setReceiveTimeout(Duration.Undefined)
+        context.become(ready)
+        queue foreach { case (s,m) ⇒ self.tell(m, s) }
+      } else {
+        context.become(clearing(client, refsLeft, (sender -> wm) :: queue, queueSize +1))
+      }
 
     case Terminated(ref) if refsLeft == 1 =>
       postStop()
       deleteDirectory()
       preStart()
+      context.setReceiveTimeout(Duration.Undefined)
       context.become(ready)
-      for ((s, m) <- queue) {
-        self.tell(m, s)
-      }
+      log.info(s"Index cleared! Releasing $queueSize commands")
+      queue foreach { case (s,m) ⇒ self.tell(m, s) }
       client ! Success("Index cleared.")
 
     case Terminated(ref) if refsLeft > 1 =>
       context.become(clearing(client, refsLeft -1))
+
+    case ReceiveTimeout ⇒
+      val message = "Timeout clearing index while waiting for current indexes to become idle"
+      log.error(message)
+      client ! Failure(message)
+      context.setReceiveTimeout(Duration.Undefined)
+      context.become(ready)
+      queue foreach { case (s,m) ⇒ self.tell(m, s) }
   }
 
   override def preStart() = {

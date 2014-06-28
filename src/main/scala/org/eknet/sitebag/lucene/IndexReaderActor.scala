@@ -1,6 +1,6 @@
 package org.eknet.sitebag.lucene
 
-import akka.actor.{Props, ReceiveTimeout, ActorLogging, Actor}
+import akka.actor.{Props, ReceiveTimeout, ActorLogging, Actor, PoisonPill}
 import org.apache.lucene.store.{FSDirectory, Directory}
 import org.apache.lucene.index.DirectoryReader
 import java.util.concurrent.atomic.AtomicInteger
@@ -20,7 +20,7 @@ import scala.util.Try
  *
  * @param directory
  */
-class IndexReaderActor(directory: Directory) extends Actor with ActorLogging {
+class IndexReaderActor(directory: Directory) extends Actor with ActorLogging with IndexClosing {
   import context.dispatcher
   import akka.pattern.pipe
 
@@ -43,6 +43,10 @@ class IndexReaderActor(directory: Directory) extends Actor with ActorLogging {
   }
 
   def receive = {
+    case Shutdown ⇒
+      context.become(shuttingdown(readerRef))
+      self ! IndexClosing.Check
+
     case ReceiveTimeout =>
       if (readerRef.get() == 0) {
         closeCurrentReader()

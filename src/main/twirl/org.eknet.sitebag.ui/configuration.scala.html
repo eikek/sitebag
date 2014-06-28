@@ -124,6 +124,11 @@
         <input type="text" id="sb-reextract-entryid" class="form-control">
       </div>
     </div>
+    <div class="form-group">
+      <label class="control-label col-sm-3 sr-only"></label>
+      <div class="sb-progress-cnt col-sm-4">
+      </div>
+    </div>
     <a href="#" id="sb-reextract-btn" class="btn btn-default sb-reextract-btn">Submit</a>
   </form>
 </div>
@@ -176,6 +181,14 @@
   <p>This is <em>@(settings.applicationName), v@(settings.applicationVersion)</p>
   <p>Built from <em>#@(settings.applicationRevision)</em> on <em>@{spray.http.DateTime(settings.applicationBuildTime).toRfc1123DateTimeString}</em></p>
 </div>
+<script id="sbtpl-progress-bar" type="x-tmpl-mustache">
+  <div class="progress">
+    <div class="progress-bar progress-bar-striped progress-bar-info active" 
+         role="progressbar" aria-valuenow="{{done}}" aria-valuemin="0" aria-valuemax="{{total}}" style="width: {{progress}}%">
+      <span>{{done}}/{{total}}</span>
+    </div>
+  </div>
+</script>
 <script type="text/javascript">
   $('#sb-newtoken-btn').click(function (ev) {
     spin($(this).parent());
@@ -190,10 +203,23 @@
     return false;
   });
   $('#sb-reextract-btn').click(function(ev) {
+    var progressCnt = $('.sb-reextract').find('.sb-progress-cnt');
+    var pollStatus = function() {
+      $.get(settings.apiPath("/reextract"), { "status": true },  function(data) {
+        if (data.success && data.value.running) {
+          progressCnt.html(render('sbtpl-progress-bar', data.value));
+          setTimeout(pollStatus, 200);
+        } else {
+          progressCnt.html("");
+        }
+      });
+    };
     var entryid = $('#sb-reextract-entryid').val() || null;
-    feedback({ success: true, message: "Starting re-extraction "+(entryid ? "for id '"+entryid+"' ..." : "...") });
     postJson(settings.apiPath("/reextract"), { "entryId": entryid }, function(data) {
       feedback(data);
+      if (data.success) {
+        pollStatus();
+      }
     });
     ev.preventDefault();
     return false;

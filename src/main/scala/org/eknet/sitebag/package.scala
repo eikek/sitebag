@@ -35,6 +35,13 @@ package object sitebag {
   case class ListTags(account: Ident, regex: String = ".*") extends StoreMessage
   case class TagList(tags: List[Tag], cloud: Map[Tag, Int])
   case class ReExtractContent(account: Ident, entryId: Option[String]) extends StoreMessage
+  case class ReExtractStatusRequest(account: Ident) extends StoreMessage
+
+  sealed trait ReExtractStatus extends Serializable
+  object ReExtractStatus {
+    case class Idle(account: Ident) extends ReExtractStatus
+    case class Running(account: Ident, done: Int, total: Option[Int], startedAt: Long) extends ReExtractStatus
+  }
 
   case class AccountList(names: List[Ident])
 

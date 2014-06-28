@@ -45,6 +45,30 @@ trait JsonProtocol extends ModelJsonProtocol {
     def write(obj: Tag) = JsString(obj.name)
   }
 
+  implicit val reextractStatusFormat = new JsonFormat[ReExtractStatus] {
+    def write(obj: ReExtractStatus) = obj match {
+      case ReExtractStatus.Idle(acc) ⇒ JsObject(
+        "account" → acc.toJson,
+        "running" → false.toJson
+      )
+
+      case ReExtractStatus.Running(acc, done, total, startedAt) ⇒ JsObject(
+        "account" → acc.toJson,
+        "running" → true.toJson,
+        "done" → done.toJson,
+        "total" → total.toJson,
+        "progress" → total.map(t ⇒ ((done.toDouble / t) * 100).toInt).getOrElse(0).toJson,
+        "startedAt" → startedAt.toJson,
+        "since" → DateTime(startedAt).toIsoDateTimeString.toJson
+      )
+    }
+
+    // not needed, this is only for responses
+    // but ResultFormat wants a JsonFormat[T]...
+    // TODO split ResultFormat in Reader and Writer
+    def read(json: JsValue) = ??? 
+  }
+
   class ResultFormat[T](tformat: JsonFormat[Option[T]]) extends RootJsonFormat[Result[T]] {
 
     def read(json: JsValue) = json match {
@@ -124,6 +148,7 @@ trait JsonProtocol extends ModelJsonProtocol {
   implicit val taglistFormat = jsonFormat2(TagList)
   implicit val deleteActionFormat = jsonFormat1(DeleteAction)
   implicit val reextractActionFormat = jsonFormat1(ReextractAction)
+
 }
 
 object JsonProtocol extends JsonProtocol

@@ -61,8 +61,17 @@ class AdminHttp(val settings: SitebagSettings, adminRef: ActorRef, ec: Execution
       } ~
       path("reextract") {
         checkAccess(subject, checkAddEntry) { rctx =>
-          handle { re: ReextractAction =>
+          handle { re: ReextractAction ⇒
             (adminRef ? ReExtractContent(rctx.subject, re.entryId)).mapTo[Ack]
+          }
+        }
+      }
+    } ~
+    get {
+      path("reextract") {
+        parameter('status) { _ ⇒
+          checkAccess(subject, checkAddEntry) { rctx =>
+            complete( (adminRef ? ReExtractStatusRequest(rctx.subject)).mapTo[Result[ReExtractStatus]] )
           }
         }
       }

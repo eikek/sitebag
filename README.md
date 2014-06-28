@@ -148,6 +148,7 @@ In short, here are the relevant url endpoints:
     /api/<account> (PUT ?newaccount=&newpassword=)
     /api/<account>/newtoken
     /api/<account>/changepassword?newpassword=
+    /api/<account>/reextract
     /api/<account>/entry 
     /api/<account>/entry/<id> (GET|DELETE|POST?delete=true)
     /api/<account>/entry/<id>/togglearchived
@@ -229,6 +230,39 @@ This will add the contents of the site at the given url to
 sitebag. The `title` parameter is optional and will override the
 automatic detection. The optional `tags` list can carry tags that are
 associated with the new entry.
+
+
+#### re-extract content from entries
+
+Sitebag tries to extract the "main content". The algorithm how to
+extract this may change in the future and already stored entries could
+then be extracted anew to benefit from this. Since Sitebag stores the
+original document, they can be simply "re-extracted".
+
+    POST /<account>/reextract { entryId: ... }
+
+The `entryId` parameter is optional. If specified, only content from
+this entry is extracted. If not specified a job starts that goes
+through all entries of the given account and extracts the content from
+each anew. This might take a while and the progress can be queried
+with:
+
+    GET /<account>/reextract?status
+
+This returns a json object like this
+
+    { account: <account>, running: true|false, ... }
+
+If `running` is `true`, then the object has more properties that
+describe the current progress:
+
+    | property  | description                                |
+    |-----------+--------------------------------------------|
+    | done      | number of entries that have been extracted |
+    | total     | total number of entries to extract         |
+    | progress  | done / total * 100                         |
+    | startedAt | the timestamp when extraction started      |
+    | since     | startedAd as ISO date-time string          |
 
 
 #### delete site
