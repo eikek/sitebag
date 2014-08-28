@@ -59,8 +59,11 @@ class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorR
             (Get(webSettings.bootswatchApi) ~> sendReceive).map(_.entity)
           }
         }
-      } ~
-      render(userInfo, "Not found", html.notfound())
+      } ~ {
+        respondWithStatus(StatusCodes.NotFound) {
+          render(userInfo, "Not found", html.notfound())
+        }
+      }
     }
   }
 }
