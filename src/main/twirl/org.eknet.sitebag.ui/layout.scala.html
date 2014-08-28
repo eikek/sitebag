@@ -1,4 +1,4 @@
-@(user: UserInfo, settings: WebSettings, title: String, body: => Html)
+@(user: UserInfo, settings: WebSettings, title: String, body: => Html, js: List[String])
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,6 +27,9 @@
   @org.eknet.sitebag.ui.html.settings(user, settings)
 
   <script src="@(settings.base.pathPrefix)ui/static/sitebag-app.js" type="text/javascript"></script>
+  @for(f ← js) {
+  <script src="@(settings.base.pathPrefix)ui/static/@(f).js" type="text/javascript"></script>
+  }
 </head>
 <body>
 
