@@ -16,7 +16,7 @@ trait Index {
   def deleteDocument[T](ids: Iterable[T])(implicit tc: TermCreator[T])
 
   def withAnalyzer(a: Analyzer): Index
-  def withStandardAnalyzer = withAnalyzer(new StandardAnalyzer(luceneVersion))
+  def withStandardAnalyzer = withAnalyzer(new StandardAnalyzer())
 }
 
 object Index {

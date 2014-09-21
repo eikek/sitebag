@@ -28,18 +28,18 @@ class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorR
       getFromResource("org/eknet/sitebag/ui/static/" +file)
     } ~
     path("login") {
-      render(UserInfo.empty, "Login", html.login())
+      render(UserInfo.empty, "Login", html.login(), "login" :: Nil)
     } ~
     authcUiOrLogin { userInfo =>
       pathEndOrSingleSlash {
-        render(userInfo, "Search", html.dashboard(webSettings))
+        render(userInfo, "Search", html.dashboard(webSettings), "dashboard" :: Nil)
       } ~
       path("conf") {
-        render(userInfo, "Configuration", html.configuration(userInfo, webSettings))
+        render(userInfo, "Configuration", html.configuration(userInfo, webSettings), "configuration" :: Nil)
       } ~
       path("entry" / Segment) { id =>
         getEntry(store, GetEntry(userInfo.name, id)) { entry =>
-          render(userInfo, entry.title, html.entryview(entry, webSettings))
+          render(userInfo, entry.title, html.entryview(entry, webSettings), "entryview" :: Nil)
         }
       } ~
       path("entry" / Segment / "cache") { id =>
@@ -59,8 +59,11 @@ class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorR
             (Get(webSettings.bootswatchApi) ~> sendReceive).map(_.entity)
           }
         }
-      } ~
-      render(userInfo, "Not found", html.notfound())
+      } ~ {
+        respondWithStatus(StatusCodes.NotFound) {
+          render(userInfo, "Not found", html.notfound())
+        }
+      }
     }
   }
 }

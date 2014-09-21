@@ -32,7 +32,9 @@
       return url.indexOf(settings.pathprefix+'bin?url=') == 0;
     },
     enableHighlightJs: "@settings.enableHighlightJs",
-    highlightJsTheme: "@settings.highlightJsTheme"
+    highlightJsTheme: "@settings.highlightJsTheme",
+    enableChangePassword: @settings.enableChangePassword,
+    canCreateUser: @user.canCreateUser
   };
   settings.bootswatchApi = settings.uiPath("/api/bootswatch");
 </script>

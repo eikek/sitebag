@@ -23,7 +23,7 @@ class IndexWriterActor(directory: Directory) extends Actor with ActorLogging wit
   import akka.pattern.pipe
 
   private val settings = SitebagSettings(context.system)
-  private val analyzer = new StandardAnalyzer(luceneVersion)
+  private val analyzer = new StandardAnalyzer()
   private var writer: Option[IndexWriter] = None
   private val writerRef = new AtomicInteger(0)
 

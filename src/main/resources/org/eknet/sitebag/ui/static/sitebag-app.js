@@ -28,7 +28,7 @@ function postJson(url, data, callback) {
     dataType: "json",
     success: callback,
     error: function(xhr, text, error) {
-      feedback({ success: false, message: "Error response from server: "+ error })
+      feedback({ success: false, message: "Error response from server: "+ error });
     }
   });
 }
@@ -43,7 +43,7 @@ function ajaxGet(url, data, callback) {
     data: data,
     success: callback,
     error: function(xhr, text, error) {
-      feedback({ success: false, message: "Error response from server: "+ error })
+      feedback({ success: false, message: "Error response from server: "+ error });
     }
   });
 }
@@ -58,7 +58,7 @@ function ajaxPost(url, data, callback) {
     data: data,
     success: callback,
     error: function(xhr, text, error) {
-      feedback({ success: false, message: "Error response from server: "+ error })
+      feedback({ success: false, message: "Error response from server: "+ error });
     }
   });
 }
@@ -71,7 +71,7 @@ function feedback(data) {
   var div = $('#sb-notification');
   div.html(msg).animate({delay: 1}, 3500, function () {
     div.html("");
-  })
+  });
 }
 
 // ---- Mustache helper
@@ -166,6 +166,8 @@ function createEntrySearchForm(callback) {
         $(this).parents("form").change();
         ev.preventDefault();
         return false;
+      } else {
+        return true;
       }
     });
   }
@@ -273,6 +275,8 @@ function bindEntryActions(callback) {
           addTagHandler();
           ev.preventDefault();
           return false;
+        } else {
+            return true;
         }
       });
       modal.find('.sb-tag-edit-form').submit(function(ev) {
@@ -280,7 +284,7 @@ function bindEntryActions(callback) {
         return false;
       });
       modal.find('.sb-add-btn').click(function(b) {
-        addTagHandler()
+        addTagHandler();
       });
       select.dblclick(function(e) {
         if ($(e.target).parent().attr('id') === select.attr('id')) {
@@ -349,7 +353,7 @@ function loadEntries(q, p) {
         var tags = "";
         entry.tags.forEach(function(el, i) {
           if (i > 0) { tags += ', '; }
-          tags += el
+          tags += el;
         });
         var context = $.extend({}, entry, {
           tagString: tags,
@@ -430,10 +434,9 @@ $(function() {
       if (result.success) {
         window.location = settings.uiPath();
       }
-    });    
+    });
 
     ev.preventDefault();
     return false;
   });
 });
-

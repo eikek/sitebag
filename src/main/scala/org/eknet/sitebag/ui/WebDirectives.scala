@@ -27,9 +27,9 @@ trait WebDirectives extends Directives {
 
   def webSettings: WebSettings
 
-  def render(info: UserInfo, title: String, body: Html): Route = {
+  def render(info: UserInfo, title: String, body: Html, js: List[String] = Nil): Route = {
     complete {
-      html.layout(info, webSettings, title, body)
+      html.layout(info, webSettings, title, body, js)
     }
   }
 
