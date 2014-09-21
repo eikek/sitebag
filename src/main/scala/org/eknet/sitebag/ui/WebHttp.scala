@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.util.Timeout
 import org.eknet.sitebag.rest.RestDirectives
 import org.eknet.sitebag.model.UserInfo
+import org.eknet.sitebag.model.PageEntry
 import org.eknet.sitebag._
 
 class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorRefFactory, to: Timeout)
@@ -28,18 +29,18 @@ class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorR
       getFromResource("org/eknet/sitebag/ui/static/" +file)
     } ~
     path("login") {
-      render(UserInfo.empty, "Login", html.login(), "login" :: Nil)
+      renderLoginPage
     } ~
     authcUiOrLogin { userInfo =>
       pathEndOrSingleSlash {
-        render(userInfo, "Search", html.dashboard(webSettings), "dashboard" :: Nil)
+        renderDashboard(userInfo)
       } ~
       path("conf") {
-        render(userInfo, "Configuration", html.configuration(userInfo, webSettings), "configuration" :: Nil)
+        renderConfiguration(userInfo)
       } ~
       path("entry" / Segment) { id =>
         getEntry(store, GetEntry(userInfo.name, id)) { entry =>
-          render(userInfo, entry.title, html.entryview(entry, webSettings), "entryview" :: Nil)
+          renderEntry(userInfo, entry)
         }
       } ~
       path("entry" / Segment / "cache") { id =>
@@ -61,9 +62,24 @@ class WebHttp(val settings: SitebagSettings, store: ActorRef, refFactory: ActorR
         }
       } ~ {
         respondWithStatus(StatusCodes.NotFound) {
-          render(userInfo, "Not found", html.notfound())
+          render(userInfo, "Not found", html.notfound(), webSettings)
         }
       }
     }
   }
+
+  private def renderEntry(userInfo: UserInfo, entry: PageEntry) =
+    render(userInfo, entry.title, html.entryview(entry, webSettings),
+      webSettings, "entryview" :: Nil)
+
+  private def renderLoginPage =
+    render(UserInfo.empty, "Login", html.login(), webSettings, "login" :: Nil)
+
+  private def renderConfiguration(userInfo: UserInfo) =
+    render(userInfo, "Configuration", html.configuration(userInfo, webSettings),
+      webSettings, "configuration" :: Nil)
+
+  private def renderDashboard(info: UserInfo) =
+    render(info, "Search", html.dashboard(webSettings), webSettings, "dashboard" :: Nil)
+
 }

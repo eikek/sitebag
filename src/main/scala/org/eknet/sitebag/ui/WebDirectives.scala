@@ -25,11 +25,13 @@ trait WebDirectives extends Directives {
   import spray.httpx.SprayJsonSupport._
   import TwirlSupport._
 
-  def webSettings: WebSettings
-
-  def render(info: UserInfo, title: String, body: Html, js: List[String] = Nil): Route = {
+  def render(info: UserInfo,
+             title: String,
+             body: Html,
+             settings: WebSettings,
+             js: List[String] = Nil): Route = {
     complete {
-      html.layout(info, webSettings, title, body, js)
+      html.layout(info, settings, title, body, js)
     }
   }
 
