@@ -66,7 +66,7 @@ trait JsonProtocol extends ModelJsonProtocol {
     // not needed, this is only for responses
     // but ResultFormat wants a JsonFormat[T]...
     // TODO split ResultFormat in Reader and Writer
-    def read(json: JsValue) = ??? 
+    def read(json: JsValue) = ???
   }
 
   class ResultFormat[T](tformat: JsonFormat[Option[T]]) extends RootJsonFormat[Result[T]] {
@@ -135,7 +135,7 @@ trait JsonProtocol extends ModelJsonProtocol {
       "createdYear" -> obj.created.year.toJson,
       "createdMonth" -> obj.created.month.toJson,
       "createdDay" -> obj.created.day.toJson,
-      "tags" -> obj.tags.toList.toJson
+      "tags" -> obj.tagsSorted.toJson
     )
   }
 
