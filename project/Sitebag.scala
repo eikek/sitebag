@@ -7,7 +7,7 @@ object Version {
   val sprayJson = "1.2.6"
   val akka = "2.2.4"
   val config = "1.2.1"
-  val lucene = "4.8.1"
+  val lucene = "4.10.0"
   val jsoup = "1.7.3"
   val porter = "0.2.0"
 }
@@ -109,7 +109,7 @@ object Sitebag extends sbt.Build {
   lazy val gitRevKey = BuildInfoKey.action("revision") {
     Process("git rev-parse HEAD").lines.head
   }
-  
+
   override lazy val settings = super.settings ++ Seq(
     version := "0.2.0-SNAPSHOT",
     resolvers ++= Seq("spray repo" at "http://repo.spray.io",

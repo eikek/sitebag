@@ -71,7 +71,9 @@ trait SitebagSettings {
     u1.withQuery(qmap)
   }
 
-  val indexDir = java.nio.file.Paths.get(config.getString("lucene.index-dir") + lucene.luceneVersion.name().takeRight(2))
+  val indexDir = java.nio.file.Paths.get(
+    config.getString("lucene.index-dir") + lucene.luceneVersion.toString())
+
   val indexReceiveTimeout = FiniteDuration(config.getDuration("lucene.index-receive-timeout", TimeUnit.SECONDS), TimeUnit.SECONDS)
 
 

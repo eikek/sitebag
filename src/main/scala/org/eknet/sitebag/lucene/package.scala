@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 
 package object lucene {
 
-  val luceneVersion = Version.LUCENE_48
+  val luceneVersion = Version.LUCENE_4_10_0
 
   final case class Keyword(s: String) extends AnyVal
 

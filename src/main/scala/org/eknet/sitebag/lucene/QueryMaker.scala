@@ -9,9 +9,9 @@ trait QueryMaker extends (() => Query) with Serializable
 
 object QueryMaker {
 
-  def fromString(query: String, field: String, analyzer: Analyzer = new StandardAnalyzer(luceneVersion)): QueryMaker = new QueryMaker {
+  def fromString(query: String, field: String, analyzer: Analyzer = new StandardAnalyzer()): QueryMaker = new QueryMaker {
     def apply() = {
-      val parser = new QueryParser(luceneVersion, field, analyzer)
+      val parser = new QueryParser(field, analyzer)
       parser.setAllowLeadingWildcard(true)
       parser.setLowercaseExpandedTerms(true)
       parser.setAutoGeneratePhraseQueries(true)
