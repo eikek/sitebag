@@ -113,7 +113,7 @@ object Sitebag extends sbt.Build {
   }
 
   override lazy val settings = super.settings ++ Seq(
-    version := "0.2.0-SNAPSHOT",
+    version := "0.2.0",
     resolvers ++= Seq("spray repo" at "http://repo.spray.io",
                       "typesafe-releases" at "http://repo.typesafe.com/typesafe/releases",
                       "eknet-maven2" at "https://eknet.org/maven2"),

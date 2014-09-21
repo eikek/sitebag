@@ -4,7 +4,7 @@ import spray.http.{DateTime, Uri}
 import porter.util.Hash
 import org.eknet.sitebag.content.Content
 
-case class PageEntry(title: String,
+final case class PageEntry(title: String,
                      url: Uri,
                      content: String,
                      shortText: String,
@@ -14,7 +14,10 @@ case class PageEntry(title: String,
 
   require(title.nonEmpty, "title is required")
 
-  final val id = PageEntry.makeId(url)
+  val id = PageEntry.makeId(url)
+
+  val tagsSorted = tags.toList.sortBy(_.name)
+
   def withTags(t1: Tag, ts: Tag*) = copy(tags = tags ++ (t1 +: ts))
 
   def toFullEntry(page: Content) = FullPageEntry(this, page)
@@ -24,4 +27,3 @@ object PageEntry {
   def makeId(url: Uri): String = makeId(url.toString())
 }
 case class FullPageEntry(entry: PageEntry, page: Content)
-
