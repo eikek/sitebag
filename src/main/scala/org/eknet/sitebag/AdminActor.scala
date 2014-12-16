@@ -33,12 +33,8 @@ class AdminActor(reextrRef: ActorRef, porter: PorterContext, mongo: SitebagMongo
   }
 
   def removeSitebagAccount(account: Ident) =
-    if (settings.porterModeIsEmbedded) {
-      Future.sequence(porter.deleteAccount(account) :: porter.deleteGroup(account) :: Nil)
-        .map(list => OperationFinished(list.map(_.success).reduce(_ && _), None))
-    } else {
-      porter.updateGroup(account, _.updatedRules(_.filterNot(_.startsWith("sitebag:"))))
-    }
+    Future.sequence(porter.deleteAccount(account) :: porter.deleteGroup(account) :: Nil)
+      .map(list => OperationFinished(list.map(_.success).reduce(_ && _), None))
 
   def receive = {
     case CreateUser(account, password) =>
@@ -101,7 +97,7 @@ class AdminActor(reextrRef: ActorRef, porter: PorterContext, mongo: SitebagMongo
   }
 
   private def createAdminAccount: Future[Result[String]] = {
-    val realm = Realm("default", "Default Realm")
+    val realm = Realm(settings.porterRealm, "Default Realm")
     val group = Group("admin", Map.empty, Set(s"sitebag:*"))
     val token = Token.random
     val acc = Account(
@@ -109,11 +105,6 @@ class AdminActor(reextrRef: ActorRef, porter: PorterContext, mongo: SitebagMongo
       groups = Set(group.name),
       secrets = Password("admin") :: token.toSecret :: Nil
     ).updatedProps(UserInfo.token.set(token))
-
-    def makeAccount: Account => Account = _.updatedGroups(_ + group.name).updatedProps { props =>
-      if (UserInfo.token.get(props).isDefined) props
-      else UserInfo.token.set(token).apply(props)
-    }
 
     val f = for {
       rr ← porter.updateRealm(realm)

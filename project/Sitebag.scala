@@ -9,7 +9,7 @@ object Version {
   val config = "1.2.1"
   val lucene = "4.10.0"
   val jsoup = "1.7.3"
-  val porter = "0.2.0"
+  val porter = "0.3.0"
 }
 
 object Deps {

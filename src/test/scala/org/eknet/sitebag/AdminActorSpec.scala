@@ -18,7 +18,6 @@ class AdminActorSpec extends ActorTestBase("AdminActor") with MongoTest {
     def porter = settings.porter
     def logger(c: Class[_]) = settings.logger(c)
     def extractor = settings.extractor
-    override val porterMode = "remote"
   }
   val embeddedRef = system.actorOf(AdminActor(null, porter, mongo, settings))
 

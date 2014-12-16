@@ -35,7 +35,7 @@ class SitebagService extends HttpServiceActor with Actor with ActorLogging with 
   val binHttp = new BinaryHttp(settings, store, context, executionContext, timeout)
   val wallabag = new WallabagHttp(settings, app, context, executionContext, timeout)
 
-  if (settings.porterModeIsEmbedded && settings.telnetEnabled) {
+  if (settings.telnetEnabled) {
     TelnetServer.bind(settings.porter.porterRef, settings.telnetHost, settings.telnetPort)
   }
 

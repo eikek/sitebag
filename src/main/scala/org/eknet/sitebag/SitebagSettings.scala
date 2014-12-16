@@ -31,22 +31,26 @@ trait SitebagSettings {
   def mongoDriver: MongoDriver
 
   val createAdminAccount = config.getBoolean("create-admin-account")
-  val porterMode: String = config.getString("porter.mode")
-  val porterModeIsEmbedded = porterMode == "embedded"
   val porterRealm: Ident = Ident(config.getString("porter.realm"))
-  val porterRemoteUrl = config.getString("porter.remote.url")
   val cookieKey = Try(config.getString("cookie-key")).map(Base64.decode).getOrElse(AES.generateRandomKey).toVector
   def porter: PorterContext
   def tokenContext: PorterContext
+
+  val externalAuthentication: Option[(Boolean, String)] =
+    if (config.getBoolean("porter.externalAuthentication.enable"))
+      Some((config.getBoolean("porter.externalAuthentication.usePost"),
+        config.getString("porter.externalAuthentication.urlPattern")))
+    else None
+
 
   def extractor: Extractor
 
   val bindHost: String = config.getString("bind-host")
   val bindPort: Int = config.getInt("bind-port")
 
-  val telnetHost = config.getString("porter.embedded.telnet.host")
-  val telnetPort = config.getInt("porter.embedded.telnet.port")
-  val telnetEnabled = config.getBoolean("porter.embedded.telnet.enabled")
+  val telnetHost = config.getString("porter.telnet.host")
+  val telnetPort = config.getInt("porter.telnet.port")
+  val telnetEnabled = config.getBoolean("porter.telnet.enabled")
 
   val webuiEnabled = config.getBoolean("enable-web-ui")
   val logRequests = config.getBoolean("log-requests")
@@ -89,9 +93,10 @@ trait SitebagSettings {
     lazy val loadObject = dynAccess.getObjectFor(fqcn)
     val args = scala.collection.immutable.Seq.empty[(Class[_], AnyRef)]
     lazy val configCtor = dynAccess.createInstanceFor(fqcn, args :+ (classOf[Config] -> cfg))
+    lazy val settingsCtor = dynAccess.createInstanceFor(fqcn, args :+ (classOf[SitebagSettings] -> this))
     val defctor = dynAccess.createInstanceFor(fqcn, args)
 
-    configCtor orElse defctor orElse loadObject match {
+    configCtor orElse settingsCtor orElse defctor orElse loadObject match {
       case r @ scala.util.Success(_) => r
       case scala.util.Failure(ex) => scala.util.Failure(new Exception(s"Unable to create instance: $fqcn", ex))
     }
@@ -111,15 +116,8 @@ class SitebagSettingsExt(system: ExtendedActorSystem) extends Extension with Sit
     Extractor.combine(config.getConfigList("extractors").asScala.map(c => maker(c)) :+ fallback)
   }
 
-  private lazy val _porterRef = {
-    if (porterMode == "remote") {
-      PorterRef(Porter(system).select(porterRemoteUrl))
-    }
-    else if (porterModeIsEmbedded) {
-      PorterRef(Porter(system).fromSubConfig(system, "sitebag.porter.embedded", "porter"))
-    }
-    else throw new IllegalArgumentException("Unknown porter mode: "+ porterMode)
-  }
+  private lazy val _porterRef =
+      PorterRef(Porter(system).fromSubConfig(system, "sitebag.porter", "porter"))
 
   lazy val porter = PorterContext(_porterRef, porterRealm, new Decider {
     def apply(result: AuthResult) =
